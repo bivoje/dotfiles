@@ -1,0 +1,88 @@
+" :noh to remove current highlights
+set hlsearch
+
+inoremap jk <esc>
+
+" print current function name
+" https://vi.stackexchange.com/a/12429
+nnoremap <C-g> :echo getline(search('\v^[[:alpha:]$_]', "bn", 1, 100))<CR>
+
+" auto indent when new line created
+set autoindent
+
+" guess the indentation by syntax context
+set smartindent
+
+" # of columns that <tab> would occupy
+set tabstop=2
+
+" use equivalent # of space whenever tab
+set expandtab " set et
+
+" base indent width
+set shiftwidth=2
+
+" show line and column number
+set ruler
+
+" show cmd mid input
+set showcmd
+
+" syntax highlighting
+syntax on
+
+" make backspaces more powerfull
+set backspace=indent,eol,start
+
+filetype indent plugin on
+set softtabstop=2
+
+" show line number
+set nu
+"set width of line number display
+"set nuw=?
+
+" show line number relatively to cursor line
+"set rnu 
+
+" # of additional rows to show above/below the cursor
+set scrolloff=3
+
+" force this settings when opening rust and python files
+autocmd FileType rust,python setlocal expandtab shiftwidth=2 softtabstop=2
+
+" fold code 
+set foldmethod=syntax
+
+" don't fold code when just opened
+set nofoldenable
+
+" highlights current cursor line/column
+"set cursorline
+"set cursorcolumn
+
+" pairs that can wrap by '%'
+set matchpairs+=<:>
+
+" simple calculation with <num><C-x> or <C-a>
+" e.g. 248<C-x> to subtract 248 from a value in buffer
+
+" create operator with function, operators are something like c-, d-, y-
+" prefixes of command
+"set operatorfunc
+
+" reverse right-left, for trolling purpose?
+"set rl
+
+" insert reversed, with rl option, you can write davinci's mirrored encryption
+"set revins
+
+"set statusline
+"set tabline
+set wildmenu
+
+"wrapped lines can be traveled with g[0^jk$] 
+"% sends you to closest opening bracket before the cursor
+
+" redraw screen once when the macro execution is completeted
+set lazyredraw
