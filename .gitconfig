@@ -7,3 +7,5 @@
 	ll = log --graph --oneline --all --decorate
 [merge]
 	tool = vimdiff
+[core]
+  editor = vim
