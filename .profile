@@ -7,3 +7,7 @@ export TLDR_CODE='red'
 export TLDR_PARAM='blue'
 
 [[ -r ~/.bashrc ]] && . ~/.bashrc
+
+if [ -e $HOME/.cargo/env ]; then
+  . "$HOME/.cargo/env"
+fi
