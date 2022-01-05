@@ -11,3 +11,4 @@ export TLDR_PARAM='blue'
 if [ -e $HOME/.cargo/env ]; then
   . "$HOME/.cargo/env"
 fi
+export PATH=$PATH:~/bin
