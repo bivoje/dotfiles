@@ -38,6 +38,7 @@ package_install=(vim tldr curl upgrade)
 # ===================== querying ===============================
 # ==============================================================
 
+# coloring done with help from https://gist.github.com/fnky/458719343aabd01cfb17a3a4f7296797
 while [ ${#package_candidate[@]} -ne 1 ]; do
 
   if [ $package_candidate == '-' ]; then
@@ -52,24 +53,33 @@ while [ ${#package_candidate[@]} -ne 1 ]; do
   package_candidate=("${package_candidate[@]:1}")
 
   cand_num=${#package_candidate[@]}
-  echo -n "packages to be installed |"
+  echo -ne "packages to be installed |\x1b[32m"
   for pack in "${package_install[@]}"; do
     echo -n " $pack"
   done
-  echo ""
+  echo -e "\x1b[0m"
 
-  echo -n " installation candidates | $package"
+  echo ""
+  echo -ne " installation candidates |\x1b[31m $package"
   for (( i = 0 ; i < $cand_num ; i++ )) ; do # FIXME forces bash
     pack="${package_candidate[$i]}"
-    if [ "$pack" == "-" ] && [ $i == $(($cand_num-1)) ]; then
-      continue
+    if [ "$pack" == "-" ]; then
+      if [ $i == $(($cand_num-1)) ]; then
+        continue
+      else
+        echo -ne "\x1b[33m !\x1b[31m"
+      fi
+    else
+      echo -n " $pack"
     fi
-    echo -n " $pack"
   done
-  echo ""
+  echo -en "\x1b[0m"
 
-  # TODO COLOR
-  read -p "  do you want to install $package? (Ynqader?) " ans
+  echo -e "\x1b[2A" # move cursor up 2 lines
+  echo -en "\x1b[2K"
+  echo -ne "  do you want to install \x1b[34m$package\x1b[0m? (Ynqader?) "
+  read -e ans
+
   if [ "$ans" == Y ] || [ "$ans" == y ]; then
     # package_install.push_front(package)
     package_install=("$package" "${package_install[@]}")
@@ -110,6 +120,9 @@ while [ ${#package_candidate[@]} -ne 1 ]; do
       package_install=("${package_install[@]:1}")
     fi
   else
+    # package_candidate.push_front(pakcage)
+    package_candidate=("$package" "${package_candidate[@]}")
+    echo -en "\x1b[35m"
     echo "y - install selected package"
     echo "n - do not install selected package"
     echo "q - quit; do not install anything"
@@ -118,9 +131,14 @@ while [ ${#package_candidate[@]} -ne 1 ]; do
     echo "e - manually add package name"
     echo "r - revert last acepttance"
     echo "? - print help"
+    echo "\n\n"
+    echo -en "\x1b[0m"
   fi
+
+  echo -en "\x1b[2A" # move up 2 lines
 done
 
+echo "" # move down 1 line
 
 # ==============================================================
 # ================== installation configure ====================
@@ -227,20 +245,24 @@ run() {
   # FIXME forces bash
   for (( i = ${#package_install[@]}-1 ; 0 <= i ; i-- )) ; do
     pack="${package_install[$i]}"
-    echo :: SETUP: try installing $pack =======
+    echo -e "\x1b[33m:: SETUP: try installing $pack \x1b[0m"
     install "$pack"
     if [ $? -eq 0 ]; then
       package_success+=("$pack")
-      echo :: SETUP: $pack installed ==========
+      echo -e "\x1b[33m:: SETUP: $pack installed \x1b[0m"
     else
       package_failed+=("$pack")
-      echo :: SETUP: $pack failed install =====
+      echo -e "\x1b[33m:: SETUP: $pack failed install \x1b[0m"
     fi
   done
 
-  echo successfully installed packages ${package_success[@]}
+  echo -e "successfully installed packages:\x1b[32m ${package_success[@]}\x1b[0m"
   if [ ${#package_failed[@]} -ne 0 ]; then
-    echo failed to install packages ${package_failed[@]}
+    if [ ${#package_failed[@]} -eq 1 ]; then
+      echo -e "failed to install package:\x1b[31m ${package_failed[@]}\x1b[0m"
+    else
+      echo -e "failed to install packages:\x1b[31m ${package_failed[@]}\x1b[0m"
+    fi
     echo see .setup_log for details
   fi
 }
