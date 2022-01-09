@@ -37,13 +37,13 @@ case "$profile" in
     package_candidate=(make build-essential ascii vim-plug tmux python3 rustup stack '-')
     package_install=(vim tldr curl upgrade)
     ;;
-  "root") # TODO
+  "nonroot")
+    package_candidate=(make build-essential ascii tmux python3 rustup stack '-')
+    package_install=(vim-plug tldr)
     ;;
   "") ;; # use default
   *) echo unkown profile "$1", loading default...
 esac
-
-# TODO sudo ditinguish sudo version?
 
 # ==============================================================
 # ===================== querying ===============================
