@@ -132,24 +132,45 @@ set lazyredraw
 " Docs on mapping fast escape codes in vim
 " http://vim.wikia.com/wiki/Mapping_fast_keycodes_in_terminal_Vim
 
-"if exists("g:loaded_bracketed_paste")
-"  finish
-"endif
-"let g:loaded_bracketed_paste = 1
-"
-"let &t_ti .= "\<Esc>[?2004h"
-"let &t_te = "\e[?2004l" . &t_te
-"
-"function! XTermPasteBegin(ret)
-"  set pastetoggle=<f29>
-"  set paste
-"  return a:ret
-"endfunction
-"
-"execute "set <f28>=\<Esc>[200~"
-"execute "set <f29>=\<Esc>[201~"
-"map <expr> <f28> XTermPasteBegin("i")
-"imap <expr> <f28> XTermPasteBegin("")
-"vmap <expr> <f28> XTermPasteBegin("c")
-"cmap <f28> <nop>
-"cmap <f29> <nop>
+if exists("g:loaded_bracketed_paste")
+  finish
+endif
+let g:loaded_bracketed_paste = 1
+
+let &t_ti .= "\<Esc>[?2004h"
+let &t_te = "\e[?2004l" . &t_te
+
+function! XTermPasteBegin(ret)
+  set pastetoggle=<f29>
+  set paste
+  return a:ret
+endfunction
+
+execute "set <f28>=\<Esc>[200~"
+execute "set <f29>=\<Esc>[201~"
+map <expr> <f28> XTermPasteBegin("i")
+imap <expr> <f28> XTermPasteBegin("")
+vmap <expr> <f28> XTermPasteBegin("c")
+cmap <f28> <nop>
+cmap <f29> <nop>
+" FIXME exit insert mode after pasting when invoked during normal mode?
+
+
+" vim-plug configs
+
+" Plugins will be downloaded under the specified directory.
+call plug#begin(has('nvim') ? stdpath('data') . '/plugged' : '~/.vim/plugged')
+
+" Declare the list of plugins.
+Plug 'jpalardy/vim-slime', { 'for': 'python' }
+Plug 'hanschen/vim-ipython-cell', { 'for': 'python' }
+
+" List ends here. Plugins become visible to Vim after this call.
+call plug#end()
+
+let g:slime_target = "tmux"
+
+" https://stackoverflow.com/a/598404
+" on systems without any display, only can use Verbose versions
+" which does not use DISPLAY env var, and uses %cpaste instead of %paste
+nnoremap <NL> :IPythonCellExecuteCellVerbose<CR>
