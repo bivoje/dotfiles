@@ -23,8 +23,10 @@ if [ -f "/etc/debian_version" ]; then
   system=debian
 fi
 
-package_candidate=(upgrade vim-plug ascii curl tmux python3 rustup stack '-')
-package_install=(vim tldr)
+# should be topologically ordered on dependency, the later, the more dependent
+package_candidate=(make build-essential ascii vim-plug tmux python3 rustup stack '-')
+# packages installed in reverse order
+package_install=(vim tldr curl upgrade)
 
 # TODO add profile...?
 # default settings for non root installs
@@ -57,7 +59,7 @@ while [ ${#package_candidate[@]} -ne 1 ]; do
   echo ""
 
   echo -n " installation candidates | $package"
-  for (( i = 0 ; i < $cand_num ; i++ )) ; do
+  for (( i = 0 ; i < $cand_num ; i++ )) ; do # FIXME forces bash
     pack="${package_candidate[$i]}"
     if [ "$pack" == "-" ] && [ $i == $(($cand_num-1)) ]; then
       continue
@@ -80,13 +82,12 @@ while [ ${#package_candidate[@]} -ne 1 ]; do
     package_install=()
     break
   elif [ "$ans" == A ] || [ "$ans" == a ]; then
-    # package_install.append(package)
-    package_install+=("$package")
-    # package_install.extend(package_candidate.drain_until('-'))
-    for (( i = 0 ; i < $cand_num ; i++ )) ; do
-      pack="${package_candidate[$i]}"
+    # package_install.push_front(package)
+    package_install=("$package" "${package_install[@]}")
+    # package_install.push_front(package_candidate.drain_until('-'))
+    for pack in "${package_candidate[@]}"; do
       if [ "$pack" == '-' ]; then break; fi
-      package_install+=("$pack")
+      package_install=("$pack" "${package_install[@]}")
     done
     package_candidate=("${package_candidate[@]:$i}")
     break
@@ -175,12 +176,14 @@ install_debian_upgrade() {
 install_system() {
   if [ -z "$1" ]; then
     # initialize if called without an argument
+    echo :: SETUP: Initializing... ==
     case "$system" in
       debian)
         apt-get -qq update
         ;;
       *) # does nothing by default
     esac
+    echo :: SETUP: Done! ==========
     return
   fi
 
@@ -221,7 +224,9 @@ run() {
 
   install_system # initialize package manager
 
-  for pack in "${package_install[@]}"; do
+  # FIXME forces bash
+  for (( i = ${#package_install[@]}-1 ; 0 <= i ; i-- )) ; do
+    pack="${package_install[$i]}"
     echo :: SETUP: try installing $pack =======
     install "$pack"
     if [ $? -eq 0 ]; then
