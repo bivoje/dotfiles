@@ -1,0 +1,46 @@
+# last modified on 2019-06-29 19:36:38
+After upgrading to ubuntu 18.04, I had to fix some of settings.
+
+first of all, comix is gone. it's not in official repository.
+but i haven't used it recently, so leave it gone.
+
+-- workspace grid view
+https://github.com/zakkak/workspace-grid
+https://linuxconfig.org/how-to-install-gnome-shell-extensions-from-zip-file-using-command-line-on-ubuntu-18-04-bionic-beaver-linux
+then logout
+
+-- window button position
+http://tipsonubuntu.com/2017/10/10/ubuntu-17-10-tip-move-window-buttons-min-max-close-left/
+
+-- window grid shortcuts
+https://unix.stackexchange.com/questions/17824/is-there-a-keyboard-shortcut-to-make-a-window-occupy-half-the-screen
+
+https://ubuntuforums.org/showthread.php?t=1193321
+
+https://ubuntuforums.org/showthread.php?t=2388541
+
+https://askubuntu.com/questions/1064705/ubuntu-18-04-keyboard-shortcuts-for-window-splitting-are-reset-after-reboot
+
+`gsettings list-keys org.gnome.desktop.wm.keybindings | sort`
+`gsettings range org.gnome.desktop.wm.keybindings move-to-side-e`
+
+alt-tap cycles through ALL windows (even in another workspace)
+to cycle through windows in current workspace, use ALT-ESC
+you can override with
+`gsettings set org.gnome.desktop.wm.keybindings cycle-windows "['<Alt>Tab']"`
+
+you can do gsessings with gconf-editor in GUI..
+
+wow. I found it. it's not in gconf though...
+https://help.ubuntu.com/stable/ubuntu-help/shell-windows-tiled.html.en
+it's just Super+Arrow, no Control.
+
+https://unix.stackexchange.com/questions/120153/resolving-mac-address-from-ip-address-in-linux
+
+
+file recovery
+`sudo foremost -i /dev/sdb -o ./ouput_dir`
+but foremost does not recover plain text files...
+
+text file recovery (https://wiki.archlinux.org/index.php/File_recovery#Text_file_recovery)
+`grep -a -C 200 -F 'Unique string in text file' /dev/sdXN > OutputFile`
