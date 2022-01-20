@@ -1,7 +1,55 @@
+set fileencodings=utf8,euc-kr
+
+" remove trailing whitespaces before saving
+"   guard my extension
+autocmd BufWritePre *.c,*.cpp,*.zig :%s/\s\+$//e
+"   guard by filetype (whenever vim sets filetype)
+" autocmd FileType c,cpp autocmd BufWritePre <buffer> %s/\s\+$//e
+
 " :noh to remove current highlights
 set hlsearch
 
+" jk for esc everywhere!
 inoremap jk <esc>
+inoremap JK <esc>
+inoremap <esc> <NOP>
+cnoremap jk <esc>
+cnoremap JK <esc>
+
+" stop using arrow keys!
+nnoremap <Up> <NOP>
+nnoremap <Down> <NOP>
+nnoremap <Right> <NOP>
+nnoremap <Left> <NOP>
+inoremap <Up> <NOP>
+inoremap <Down> <NOP>
+inoremap <Right> <NOP>
+inoremap <Left> <NOP>
+
+" use advanced moving!
+"nnoremap h <NOP>
+"nnoremap j <NOP>
+"nnoremap k <NOP>
+"nnoremap l <NOP>
+"
+"vnoremap h <NOP>
+"vnoremap j <NOP>
+"vnoremap k <NOP>
+"vnoremap l <NOP>
+
+" enable per-directory vimrc
+" set exrc
+
+" use colorscheme ron
+colo ron
+
+" hold and move current line up/downward
+nnoremap <A-j> :m .+1<CR>==
+nnoremap <A-k> :m .-2<CR>==
+inoremap <A-j> <Esc>:m .+1<CR>==gi
+inoremap <A-k> <Esc>:m .-2<CR>==gi
+vnoremap <A-j> :m '>+1<CR>gv=gv
+vnoremap <A-k> :m '<-2<CR>gv=gv
 
 " print current function name
 " https://vi.stackexchange.com/a/12429
@@ -14,7 +62,7 @@ set autoindent
 set smartindent
 
 " # of columns that <tab> would occupy
-set tabstop=2
+set tabstop=8
 
 " use equivalent # of space whenever tab
 set expandtab " set et
@@ -34,7 +82,14 @@ syntax on
 " make backspaces more powerfull
 set backspace=indent,eol,start
 
+" see the help for ':filetype-overview'
+" turn on filetype detection, load <filetype>.vim configscript
+" & load indent.vim for the filetype
+" & load plugins for the filetype
+" when open/editing such a file with filetype.
 filetype indent plugin on
+
+" use # spaces for shifting smaller than stabstop
 set softtabstop=2
 
 " show line number
@@ -46,7 +101,7 @@ set nu
 "set rnu 
 
 " # of additional rows to show above/below the cursor
-set scrolloff=3
+set scrolloff=3 " set so=3
 
 " force this settings when opening rust and python files
 autocmd FileType rust,python setlocal expandtab shiftwidth=2 softtabstop=2
@@ -77,6 +132,8 @@ set matchpairs+=<:>
 " insert reversed, with rl option, you can write davinci's mirrored encryption
 "set revins
 
+" write 'modeline' commands for file-specific options
+
 "set statusline
 "set tabline
 set wildmenu
@@ -84,7 +141,7 @@ set wildmenu
 "wrapped lines can be traveled with g[0^jk$] 
 "% sends you to closest opening bracket before the cursor
 
-" redraw screen once when the macro execution is completeted
+" redraw screen once after the macro execution is completeted
 set lazyredraw
 
 
