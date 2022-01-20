@@ -1,0 +1,7 @@
+# ignore all & Unignore all with extensions
+# automatically binary executables without extensions
+*
+!*.*
+
+# ignore all hidden
+.?*
