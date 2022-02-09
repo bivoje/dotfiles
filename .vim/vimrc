@@ -210,3 +210,9 @@ set lazyredraw
 "vmap <expr> <f28> XTermPasteBegin("c")
 "cmap <f28> <nop>
 "cmap <f29> <nop>
+
+" use my-defined color scheme for vimdiff use
+" the default for vimdiff is no less than an eyebleach
+if &diff
+    colorscheme diffcolors
+endif
