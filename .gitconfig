@@ -5,7 +5,8 @@
 	helper = store
 [alias]
 	ll = log --graph --oneline --all --decorate
+	st = status
 [merge]
 	tool = vimdiff
 [core]
-  editor = vim
+	editor = vim

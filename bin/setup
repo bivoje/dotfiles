@@ -13,6 +13,10 @@
 # ===================== script configure =======================
 # ==============================================================
 
+# TODO automatically install vim-plug - plugins?
+# TODO implement terminal-version notify-send
+
+
 # pipe fail as a whole if any of subproc fails
 # useful for checking failure of `curl <URL> | sh` installs
 set -o pipefail

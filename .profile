@@ -1,10 +1,17 @@
 SCRIPT=$SCRIPT:":~/.profile"
 
 # https://serverfault.com/a/500071
-
+# ~/.profile: executed by the command interpreter for login shells.
+# This file is not read by bash(1), if ~/.bash_profile or ~/.bash_login
+# exists.
+# see /usr/share/doc/bash/examples/startup-files for examples.
+# the files are located in the bash-doc package.
 # https://askubuntu.com/a/590902
-# this file is not executed when login shell
 # check if login shell with echo $0
+
+# the default umask is set in /etc/profile; for setting the umask
+# for ssh logins, install and configure the libpam-umask package.
+umask 022 # newly created file gets permission ~022
 
 # FIXME this should be taken care at /etc/profile.d/01-locale-fix.sh
 locale-gen en_US.UTF-8
@@ -13,8 +20,8 @@ export LANGUAGE=en_US.UTF-8
 export LC_ALL=en_US.UTF-8
 
 # FIXME append only when not included already? like .cargo/env does?
-export PATH=$PATH:~/bin # for my programs
-export PATH=$PATH:~/.local/bin # for stack 
+export PATH=$PATH:$HOME/bin # for my programs
+export PATH=$PATH:$HOME/.local/bin # for stack
 
 # for rustup / cargo
 if [ -e $HOME/.cargo/env ]; then

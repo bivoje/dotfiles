@@ -37,6 +37,9 @@ inoremap <Left> <NOP>
 "vnoremap k <NOP>
 "vnoremap l <NOP>
 
+" use advanceed editing?
+"inoremap i o O a A x X
+
 " enable per-directory vimrc
 " set exrc
 
@@ -53,7 +56,9 @@ vnoremap <A-k> :m '<-2<CR>gv=gv
 
 " print current function name
 " https://vi.stackexchange.com/a/12429
-nnoremap <C-g> :echo getline(search('\v^[[:alpha:]$_]', "bn", 1, 100))<CR>
+" finds the first un-indented line starting with an alphabet
+nnoremap <C-n> :echo getline(search('\v^[[:alpha:]$_]', "bn", 1, 100))<CR>
+" 'Ctrl-N' were used as synonym to 'j'
 
 " auto indent when new line created
 set autoindent
@@ -210,3 +215,4 @@ set lazyredraw
 "vmap <expr> <f28> XTermPasteBegin("c")
 "cmap <f28> <nop>
 "cmap <f29> <nop>
+"FIXME exit insert mode after pasting when invoked during normal mode?
