@@ -120,3 +120,11 @@ if ! shopt -oq posix; then
     . /etc/bash_completion
   fi
 fi
+
+# backup stty setting for malfunctioning program execution
+# do `reset ^J` and `stty sane ^J` to work in normal mode
+# do `stty $STTY` to recover terminal setting
+# see https://stackoverflow.com/a/36718540
+STTY=`stty -g`
+
+export TMOUT=
