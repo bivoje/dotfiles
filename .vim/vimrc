@@ -2,9 +2,14 @@ set fileencodings=utf8,euc-kr
 
 " remove trailing whitespaces before saving
 "   guard my extension
-autocmd BufWritePre *.c,*.cpp,*.zig :%s/\s\+$//e
+autocmd BufWritePre *.c,*.cpp,*.zig,*py,*rs :%s/\s\+$//e
 "   guard by filetype (whenever vim sets filetype)
 " autocmd FileType c,cpp autocmd BufWritePre <buffer> %s/\s\+$//e
+" Note that filetypes that are detected automatically can be found in
+" /usr/share/vim/vim*/filetype.vim
+" and corresponding syntax files are in
+" /usr/share/vim/vim*/syntax/*
+" https://vi.stackexchange.com/a/16950
 
 " :noh to remove current highlights
 set hlsearch
@@ -216,3 +221,9 @@ set lazyredraw
 "cmap <f28> <nop>
 "cmap <f29> <nop>
 "FIXME exit insert mode after pasting when invoked during normal mode?
+
+" use my-defined color scheme for vimdiff use
+" the default for vimdiff is no less than an eyebleach
+if &diff
+    colorscheme diffcolors
+endif
