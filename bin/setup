@@ -15,6 +15,8 @@
 
 # TODO automatically install vim-plug - plugins?
 # TODO implement terminal-version notify-send
+# TODO use package manager to resolve dependencies
+# TODO add version & help messages
 
 
 # pipe fail as a whole if any of subproc fails
@@ -32,18 +34,18 @@ silent=$2
 
 # setting for default profile
 # should be topologically ordered on dependency, the later, the more dependent
-package_candidate=(make build-essential ascii rustup stack '-')
+package_candidate=(make build-essential rustup stack '-')
 # packages installed in reverse order
-package_install=(python3 tmux vim-plug vim tldr curl upgrade)
+package_install=(python3 tmux vim-plug vim tldr clf hc ascii curl upgrade)
 
 case "$profile" in
   "minimal")
-    package_candidate=(make build-essential ascii vim-plug tmux python3 rustup stack '-')
+    package_candidate=(make build-essential hc ascii clf vim-plug tmux python3 rustup stack '-')
     package_install=(vim tldr curl upgrade)
     ;;
   "nonroot")
-    package_candidate=(make build-essential ascii tmux python3 rustup stack '-')
-    package_install=(vim-plug tldr)
+    package_candidate=(make build-essential tmux python3 rustup stack '-')
+    package_install=(vim-plug tldr clf hc ascii)
     ;;
   "") ;; # use default
   *) echo unkown profile "$1", loading default...
@@ -165,17 +167,20 @@ echo "" # move down 1 line
 # package specific install methods, mid precedence
 # ====================================================
 
+# depends on curl
 install_package_vim-plug() {
   [ -n "$silent" ] && op="-s" || op=""
   curl $op -fLo ~/.vim/autoload/plug.vim --create-dirs \
       https://raw.githubusercontent.com/junegunn/vim-plug/master/plug.vim
 }
 
+# depends on curl
 install_package_rustup() {
   [ -n "$silent" ] && op="-s" || op=""
   curl $op --proto '=https' --tlsv1.2 -Sf https://sh.rustup.rs | sh -s -- -y -q
 }
 
+# depends on wget
 install_package_stack() {
   [ -n "$silent" ] && op="-q" || op=""
   wget $op -Ol https://get.haskellstack.org/ | sh -s -- $op -f # quietly overwrite binary
@@ -186,22 +191,43 @@ install_package_stack() {
   fi
 }
 
+# depends on curl
 install_package_tldr() {
   [ -n "$silent" ] && op="-s" || op=""
-  curl $op -o ~/bin/tldr https://raw.githubusercontent.com/raylee/tldr/master/tldr && \
+  curl $op -o ~/bin/tldr https://raw.githubusercontent.com/raylee/tldr-sh-client/master/tldr && \
   chmod +x ~/bin/tldr
 }
 
+# depends on curl
+install_package_clf() {
+  [ -n "$silent" ] && op="-q" || op=""
+  pip install $op --user clf
+  # TODO option to install globally?
+}
+
+# depends on tar, make, curl
 install_package_ascii() {
   [ -n "$silent" ] && op="-s" || op=""
   curl $op -O http://www.catb.org/~esr/ascii/ascii-3.18.tar.gz && \
   tar xzf ascii-3.18.tar.gz && \
   cd ascii-3.18 && \
   make $op && \
-  mv ascii ../bin && \
+  mv ascii ~/bin && \
   cd .. && \
   rm -rf ascii-3.18 ascii-3.18.tar.gz
 }
+
+# depends on curl or rustup
+install_package_hc() {
+  if [ "`uname -ms`" != 'Linux x86_64' ]; then
+    [ -n "$silent" ] && op="-s" || op=""
+    curl $op -o \
+      ~/hc https://github.com/bivoje/hex-calculator/releases/download/rel-1.0.0/hc-linux_x86_64-1.0.0 && \
+    chmod +x ~/hc
+  else
+    [ -n "$silent" ] && op="-q" || op=""
+    cargo install $op --git https://github.com/bivoje/hex-calculator.git
+  fi
 
 # system specific install methods, lowest precedence
 # ==================================================
