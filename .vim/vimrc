@@ -156,33 +156,33 @@ set lazyredraw
 
 
 " from https://vi.stackexchange.com/a/348
-"function! Paste_Func()
-"    let s:inPaste = &paste
-"    if !s:inPaste
-"        set paste
-"    endif
-"
-"    echom s:inPaste
-"    augroup paste_callback
-"        autocmd!
-"        autocmd InsertLeave <buffer> call Paste_End()
-"    augroup END
-"
-"    startinsert
-"endfunction
-"
-"function! Paste_End()
-"    augroup paste_callback
-"        autocmd!
-"    augroup END
-"    augroup! paste_callback
-"
-"    if !s:inPaste
-"        set nopaste
-"    endif
-"endfunction
-"
-"map _i :call Paste_Func()<cr>
+function! Paste_Func()
+    let s:inPaste = &paste
+    if !s:inPaste
+        set paste
+    endif
+
+    echom s:inPaste
+    augroup paste_callback
+        autocmd!
+        autocmd InsertLeave <buffer> call Paste_End()
+    augroup END
+
+    startinsert
+endfunction
+
+function! Paste_End()
+    augroup paste_callback
+        autocmd!
+    augroup END
+    augroup! paste_callback
+
+    if !s:inPaste
+        set nopaste
+    endif
+endfunction
+
+map _i :call Paste_Func()<cr>
 
 
 

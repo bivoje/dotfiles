@@ -10,3 +10,5 @@
 	tool = vimdiff
 [core]
 	editor = vim
+[color "diff"]
+	meta = blue

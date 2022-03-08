@@ -127,4 +127,10 @@ fi
 # see https://stackoverflow.com/a/36718540
 STTY=`stty -g`
 
+# shepherd has time-based logout, remove the time limit
 export TMOUT=
+
+# for some reason, bash gets "^[[1;5D" while tmux gets "^[OD" when Ctrl-Left presed
+# bindings are not inherited, so put in here rather than .profile
+bind '"\eOD":backward-word'
+bind '"\eOC":forward-word'

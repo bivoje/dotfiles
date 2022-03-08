@@ -28,12 +28,33 @@ if [ -e $HOME/.cargo/env ]; then
   . "$HOME/.cargo/env"
 fi
 
+# used in fc, crontab
+export EDITOR=vim
+
 # tldr output coloring
+# Possible settings are: black, red, green, yellow, blue, magenta, cyan,
+# white, onblue, ongrey, reset, bold, underline, italic, eitalic, default
+# (some variables may not work in some shells).
 export TLDR_HEADER='magenta bold underline'
-export TLDR_QUOTE='italic'
+export TLDR_QUOTE='cyan'
 export TLDR_DESCRIPTION='green'
 export TLDR_CODE='red'
 export TLDR_PARAM='blue'
+
+# make clf use color always.
+# alternatively we can set 'alias clf "clf --color"' in bashrc
+export CLF_COLOR=1
+
+# convert windows path format to linux path format
+# '\' is escaped by the shell in ANY CASE,
+# so we need to pass the windows path via stdin to avoid substitution
+# e.g.
+#   $ ls `wp2lp`
+#   Z:\users\eunyoung\BIOSNAP\gene\reactome_human_TAS.tsv
+#   ^D
+#   /home/bivoje/Z/users/eunyoung/BIOSNAP/gene/reactome_human_TAS.tsv
+# assuming NAS is mounted to ~/Z on linux, Z:\ on windows
+wp2lp () { cat | tr '\\' '/' | sed 's/^\(.\):/\/home\/bivoje\/\1/'; }
 
 # auto tmux
 # https://unix.stackexchange.com/a/113768
@@ -41,6 +62,7 @@ if command -v tmux &> /dev/null && [ -n "$PS1" ] && [ -z "$TMUX" ]; then
   case "$TERM" in
     *screen*) ;;
     *tmux*) ;;
-    *) exec tmux
+    #*) exec tmux
+    *) tmux list-sessions && tmux attach || tmux
   esac
 fi
