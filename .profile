@@ -13,11 +13,12 @@ SCRIPT=$SCRIPT:":~/.profile"
 # for ssh logins, install and configure the libpam-umask package.
 umask 022 # newly created file gets permission ~022
 
-# FIXME this should be taken care at /etc/profile.d/01-locale-fix.sh
-locale-gen en_US.UTF-8
-export LANG=en_US.UTF-8
-export LANGUAGE=en_US.UTF-8
-export LC_ALL=en_US.UTF-8
+## FIXME this should be taken care at /etc/profile.d/01-locale-fix.sh
+#locale-gen en_US.UTF-8
+#export LANG=en_US.UTF-8
+#export LANGUAGE=en_US.UTF-8
+#export LC_ALL=en_US.UTF-8
+# FIXME for some reason, `locale-gen en_US.UTF-8` gives "sed: couldn't open temporary file /etc/sed0lKzhj: Permission denied" error...
 
 # FIXME append only when not included already? like .cargo/env does?
 export PATH=$PATH:$HOME/bin # for my programs
@@ -30,6 +31,10 @@ fi
 
 # used in fc, crontab
 export EDITOR=vim
+
+
+# ls -l gives date in formal '2022-06-24 12:10'
+export TIME_STYLE=long-iso
 
 # tldr output coloring
 # Possible settings are: black, red, green, yellow, blue, magenta, cyan,
