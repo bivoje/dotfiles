@@ -61,6 +61,10 @@ export CLF_COLOR=1
 # assuming NAS is mounted to ~/Z on linux, Z:\ on windows
 wp2lp () { cat | tr '\\' '/' | sed 's/^\(.\):/\/home\/bivoje\/\1/'; }
 
+# ls ++ less; useful when exploring through unfamiliar directories
+# use with `!$` which gets expanded to the last arg of the last command
+es () { arg=${1:-.}; if [ -d $arg ]; then ls $arg; else less $arg; fi }
+
 # auto tmux
 # https://unix.stackexchange.com/a/113768
 if command -v tmux &> /dev/null && [ -n "$PS1" ] && [ -z "$TMUX" ]; then
