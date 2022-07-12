@@ -1,10 +1,12 @@
 #!/usr/bin/env python
 # coding: utf-8
 
-# In[1]:
+# In[ ]:
 
 
 #!/usr/bin/env python
+
+# TODO parameterize `-i ~/.ssh/shepherd_id_rsa`, `shepherd[2-7]`
 
 import subprocess, os, io
 import pandas as pd
@@ -14,7 +16,7 @@ my_env = os.environ.copy()
 my_env['PDSH_SSH_ARGS_APPEND'] = '-i ~/.ssh/shepherd_id_rsa -o VisualHostKey=no'
 
 
-# In[2]:
+# In[ ]:
 
 
 # # see `nvidia-smi --help-query-gpu` for available fields
@@ -24,13 +26,19 @@ process = subprocess.Popen(
 output, error = process.communicate()
 # nvidia-smi adds space after comma, so we have to strip it. but only python parser engine supports `delimiter=', '`.
 gpu_info = pd.read_csv(io.BytesIO(output), delimiter=', ', engine='python', names=['gpu_i', 'uuid', 'power', 'util', 'mem', 'temp', 'effi'])
-gpu_info = gpu_info.astype({'uuid':'string'})
+gpu_info = gpu_info.astype({'uuid':'str'})
 gpu_info[['host','gpu_i']] = gpu_info['gpu_i'].str.split(': ',1,expand=True)
 #gpu_info.sort_values(by='id', inplace=True)
 gpu_info
 
 
-# In[3]:
+# In[ ]:
+
+
+#for l,x in gpu_info.loc[4].iteritems(): print(f"'{l}' '{x}'") # all stripped out!
+
+
+# In[ ]:
 
 
 # see `nvidia-smi --help-query-compute-apps` for available fields
@@ -41,173 +49,189 @@ output, error = process.communicate()
 # nvidia-smi adds space after comma, so we have to strip it. but only python parser engine supports `delimiter=', '`.
 prc_info = pd.read_csv(io.BytesIO(output), delimiter=', ', engine='python', names=['pid', 'mem', 'name', 'uuid'])
 prc_info[['host','pid']] = prc_info['pid'].str.split(':',1,expand=True)
-prc_info = prc_info.astype({'uuid':'string', 'pid':'int'})
+prc_info = prc_info.astype({'uuid':'str', 'pid':'int'})
 
 #prc_info.sort_values(by='id', inplace=True)
 prc_info
 
 
-# In[4]:
+# In[ ]:
 
 
-process = subprocess.Popen(
-   'pdsh -w shepherd[2-7] -R ssh ps --no-headers -o ",%U,%p,%C,%x,%c,%a" -p `nvidia-smi --format=csv,noheader --query-compute-apps=pid`'.split(),
-   stdout=subprocess.PIPE, env=my_env)
-output, error = process.communicate()
-ps_info = pd.read_csv(io.BytesIO(output), names=['host', 'user', 'pid', 'cpu', 'time', 'cmd', 'args'])
-ps_info['host'] = ps_info['host'].str[:-2]
-prc_info = prc_info.astype({'pid':'int'})
-ps_info
-
-
-# In[5]:
-
-
-prc_gpu = pd.merge(prc_info, gpu_info, how='left', left_on=['host','uuid'], right_on=['host','uuid'], suffixes=('_prc','_gpu'))
-prc_gpu_ps = pd.merge(prc_gpu, ps_info, how='left', left_on=['host','pid'], right_on=['host','pid'])
-
-
-# In[33]:
-
-
-tbl = prc_gpu_ps[['host', 'gpu_i', 'effi', 'temp', 'power', 'util', 'mem_gpu', 'pid', 'mem_prc', 'user', 'time', 'args']].sort_values(by=['host','gpu_i'])
-tbl
-
-
-# In[53]:
-
-
-def format_row(row, skip=False):
-    if isinstance(row, str) and row == 'header': # FIXME header string is hardcoded since fields width not known unless row is provided...
-        return "\x1b[7mgpu cluster  pst    temp   pow    gpu  gpmem    pid   cpu mem      user    start time  command                                            \x1b[27m", 138
-
-    fields = [] # (width, color_code_idx, str)
-
-    color_code = [3, 2, 6, 4, 5, 1, 9] # (good) yellow -> red (bad), default-white (dead),
-    colored = lambda c, s: f"\x1b[3{color_code[c]}m{s}\x1b[0m"
-    # host & gpu_id
-    fields.append((11, 6, f"{row['host']}-{row['gpu_i']}"))
-
-    # pstate: ranges from P0 (maximum performance) to P12 (minimum performance)
-    pstate = int(row['effi'][1:])
-    fields.append((3, pstate//2, row['effi']))
-
-    # temp: in celsius
-    from bisect import bisect_left
-    temp_range = [40, 60, 65, 70, 85, 105]
-    temp = int(row['temp'])
-    fields.append((6, bisect_left(temp_range, temp), f"{temp} °C"))
-
-    # power: in watts
-    watt = round(float(row['power'][:-2]))
-    fields.append((4, 6, f"{watt} W"))
-
-    # util: utilization of gpu cluster processor
-    util_range = [0, 20, 40, 60, 80, 90]
-    util = int(row['util'][:-2])
-    fields.append((5, 6-bisect_left(util_range, util), f"{util} %"))
-
-    # mem_gpu: utilization of gpu cluster memory
-    mem_range = [0, 20, 40, 60, 80, 90]
-    mem = int(row['mem_gpu'][:-2])
-    fields.append((5, 6-bisect_left(mem_range, util), f"{mem} %"))
-
-    # pid
-    fields.append((5, 6, str(row['pid'])))
-
-    # mem_prc
-    fields.append((8, 6, str(row['mem_prc'])))
-
-    # user
-    fields.append((8, 6, str(row['user'])))
-
-    # time
-    fields.append((12, 6, str(row['time']))) # ???
-
-    # args
-    fields.append((50, 6, str(row['args']))) # ???
-    
-    sep = '  '
-    len_sep = 2
-
-    if skip:
-        fields[0:6] = [(len_sep*5+sum(w for w,_,_ in fields[0:6]), 6, '')]
-
-    total_width = len_sep*(len(fields)-1) + sum(w for w,_,_ in fields)
-    line = sep.join(colored(c, s.rjust(w) if len(s)<=w else s[:w-1]+'..') for w,c,s in fields)
-    return line, total_width
-
-# print(format_row('header')[0])
-# print(format_row(tbl.loc[0], skip=False)[0])
-# print(format_row(tbl.loc[0], skip=True)[0])
-
-
-# In[63]:
-
-
-rowlen = 0
-last_gpu = (None, None)
-print(format_row('header')[0])
-for i,row in tbl.iterrows():
-    gpu = tuple(row[:2])
-    if gpu != last_gpu:
-        if rowlen != 0: print('⎯'*rowlen) # U+23AF
-        last_gpu = gpu
-        s, rowlen = format_row(row, skip=False)
-    else:
-        s, rowlen = format_row(row, skip=True)
-    print(s)
+#for l,x in prc_info.loc[4].iteritems(): print(f"'{l}' '{x}'") # all stripped out!
 
 
 # In[ ]:
 
 
+# https://www.baeldung.com/linux/measure-separate-cpu-usage-for-process#Linux%20ps
+# Note that `pcpu` or `%cpu` represents cpu utilization averaged thoughout whole process lifetime
+# it shows different value from `CPU%` of `htop`
+process = subprocess.Popen(
+    #'pdsh -w shepherd[2-7] -R ssh ps --no-headers -o " %U %p %C %x %c #%a#" -p `nvidia-smi --format=csv,noheader --query-compute-apps=pid`'.split(),
+    # each fields of result of `ps` is width-adjusted to form regular table. i.e. extra spaces persist if parsed as CSV.
+    # moreover, processes executed with ',' in their arguments (e.g. `cut -f1,2,3 -d' '`) could be parsed as seperate fields,
+    # which breaks read_csv function. I decided to use exploit quoting behavior, and use '#' as quote character, since '#' cannot
+    # possibly appear in `args` (they get commented out!).
+    # it is noted that `delim_whitespace=True` has same effect as `sep='\s+'` but is not true. `sep='\s+'` requires python engine
+    # which does not handle quoted fields properly when len(sep) > 1. since `delim_whitespace=True` can be used with c engine,
+    # quoting issue is gone.
+    'pdsh -w shepherd[2-7] -R ssh ps ww --no-headers -o " %U %p %C %x %c #%a" -p 1 `nvidia-smi --format=csv,noheader --query-compute-apps=pid` | sed "s/$/#/"'.split(),
+    # adding initial-proc (pid=1) in the result to prevent `ps` errors when nvidia gives no pids
+    # these dummy entries will be dropped when joining with gpu_info.
+    # training quote should be attached afterwards since if `%a` is not the last format specifier, ps would truncate the field.
+    # also note that `ww` option notifies column width to be unlimited preventing possible truncation.
+   stdout=subprocess.PIPE, env=my_env)
+output, error = process.communicate()
+#print(output.decode('ascii'))
+ps_info = pd.read_csv(io.BytesIO(output), delim_whitespace=True, quotechar='#', names=['host', 'user', 'pid', 'cpu', 'time', 'cmd', 'args'])
+ps_info['host'] = ps_info['host'].str[:-1] # remove trailing colon
+ps_info['args'] = ps_info['args'].str.strip() # quotation of args conserved trailing whitespaces
+ps_info
 
 
+# In[ ]:
 
 
+#for l,x in ps_info.loc[4].iteritems(): print(f"'{l}' '{x}'") # all stripped out!
 
 
+# In[ ]:
 
 
+# using right join to ensure gpu's with no running process still remains
+prc_gpu = pd.merge(prc_info, gpu_info, how='right', left_on=['host','uuid'], right_on=['host','uuid'], suffixes=('_prc','_gpu'))
+prc_gpu['pid'] = prc_gpu['pid'].fillna(0).astype(int)
+prc_gpu_ps = pd.merge(prc_gpu, ps_info, how='left', left_on=['host','pid'], right_on=['host','pid'])
 
 
+# In[ ]:
 
 
+tbl = prc_gpu_ps[['host', 'gpu_i', 'effi', 'temp', 'power', 'util', 'mem_gpu', 'pid', 'mem_prc', 'user', 'time', 'args']].sort_values(by=['host','gpu_i','pid'])
+tbl
 
 
+# In[ ]:
 
 
+#   row    skip_gpu skip_prc
+# 'header'    _        _      | header
+# Series    True     True     | horizontal bar
+# Series    False    True     | place holder for idle gpu (no process running)
+# Series    False    False    | for first row of a gpu cluster
+# Series    True     False    | for following rows of a gpu cluster
+def format_row(row, skip_gpu=False, skip_prc=False):
+    isHeader = isinstance(row, str) and row == 'header'
+    if isHeader: # if header, we can't skip field names at all
+        skip_gpu, skip_prc = False, False
+
+    if skip_gpu and skip_prc:
+        # if both True, this is horizontal line
+        # we first populate fields with 'header' values
+        # to calculate total width
+        isHeader = True
+
+    ## value formatting
+
+    fields = [] # (width, color_code_idx, str)
+
+    color_code = [3, 2, 6, 4, 5, 1, 9] # (good) yellow -> red (bad), default-white (dead),
+    colored = lambda c, s: s if c == 6 else f"\x1b[3{color_code[c]}m{s}\x1b[0m" # FIXME do nothing when c == 6??
+
+    # host & gpu_id
+    if not isHeader:
+        fields.append((11, 6, f"{row['host']}-{row['gpu_i']}"))
+    else: fields.append((11, 6, 'gpu cluster'))
 
 
+    # pstate: ranges from P0 (maximum performance) to P12 (minimum performance)
+    if not isHeader:
+        pstate = int(row['effi'][1:])
+        fields.append((3, pstate//2, row['effi']))
+    else: fields.append((3, 6, 'pst'))
+
+    # temp: in celsius
+    if not isHeader:
+        from bisect import bisect_left
+        temp_range = [40, 60, 65, 70, 85, 105]
+        temp = int(row['temp'])
+        fields.append((6, bisect_left(temp_range, temp), f"{temp} °C"))
+    else: fields.append((6, 6, 'temp'))
+
+    # power: in watts
+    if not isHeader:
+        watt = round(float(row['power'][:-2]))
+        fields.append((5, 6, f"{watt} W"))
+    else: fields.append((5, 6, 'pow'))
+
+    # util: utilization of gpu cluster processor
+    if not isHeader:
+        util_range = [0, 20, 40, 60, 80, 90]
+        util = int(row['util'][:-2])
+        fields.append((5, 6-bisect_left(util_range, util), f"{util} %"))
+    else: fields.append((5, 6, 'gpu'))
+
+    # mem_gpu: utilization of gpu cluster memory
+    if not isHeader:
+        mem_range = [0, 20, 40, 60, 80, 90]
+        mem = int(row['mem_gpu'][:-2])
+        fields.append((5, 6-bisect_left(mem_range, util), f"{mem} %"))
+    else: fields.append((5, 6, 'gpmem'))
+
+    # pid
+    fields.append((5, 6, str(row['pid']) if not isHeader else 'pid'))
+
+    # mem_prc
+    fields.append((8, 6, str(row['mem_prc']) if not isHeader else 'cpu mem'))
+
+    # user
+    fields.append((8, 6, str(row['user']) if not isHeader else 'user'))
+
+    # time
+    fields.append((12, 6, str(row['time']) if not isHeader else 'start time'))
+
+    # args
+    fields.append((-50, 6, str(row['args'])if not isHeader else 'command'))
+
+    ## format join
+
+    sep = '  '
+    len_sep = 2
+
+    def justify(w, s):
+        w, left = (-w,True) if w < 0 else (w,False)
+        if w < len(s): return s[:w-2] + '..'
+        else: return s.ljust(w) if left else s.rjust(w)
+
+    # squashing fields. note that skip_prc should be squashed first to keep the order.
+    if skip_prc: fields[6:] = [(len_sep*len(fields[6:-1])+sum(abs(w) for w,_,_ in fields[6:]), 6, '')]
+    if skip_gpu: fields[0:6] = [(len_sep*5+sum(abs(w) for w,_,_ in fields[0:6]), 6, '')]
+
+    if skip_gpu and skip_prc: return '⎯' * (len_sep+sum(w for w,_,_ in fields)) # U+23AF
+
+    line = sep.join(colored(c, justify(w,s)) for w,c,s in fields)
+
+    return line if not isHeader else "\x1b[7m" + line + "\x1b[27m"
+
+# print(format_row('header'))
+# print(format_row(tbl.loc[0], skip_gpu=False, skip_prc=False))
+# print(format_row(tbl.loc[0], skip_gpu=False, skip_prc=True ))
+# print(format_row(tbl.loc[0], skip_gpu=True,  skip_prc=False))
+# print(format_row(tbl.loc[0], skip_gpu=True,  skip_prc=True ))
 
 
+# In[ ]:
 
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
+last_gpu = None # None only when initial
+print(format_row('header'))
+for i,row in tbl.iterrows():
+    gpu = tuple(row[:2])
+    if gpu != last_gpu:
+        if last_gpu: print(format_row((), skip_gpu=True, skip_prc=True)) # draw horizontal bar
+        print(format_row(row, skip_gpu=False, skip_prc=row['pid']==0))
+        last_gpu = gpu
+    else:
+        print(format_row(row, skip_gpu=True))
 
