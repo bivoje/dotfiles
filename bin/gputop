@@ -1,0 +1,32 @@
+#!/bin/bash
+
+# `bufson A B`: prepend string A before stdout of command B
+# then whole stdout is buffered and outputed at once
+# http://www.pixelbeat.org/programming/stdio_buffering/ - this was good but non helping :(
+bufson() { ret=`bash -c "$2"`; printf "$1"; echo -e "$ret"; }
+
+interval=${1:-3} # defaults to 3 sec interval or use argv[1] if specified
+HEAD="refreshing every $interval sec. press ENTER to exit."
+
+# don't exit with ctrl-c. it prevents restoring orig buffer.
+check() {
+  now=$(date +%s)sec # current timestamp in seconds
+  printf "\x1b[?1049h" # enable alternate buffer
+  printf "\x1b[2J\x1b[H$HEAD\n...LOADING..."
+  while ! read -t 0 -s; do # run while stdin is not empty
+    (bufson "\x1b[2J\x1b[H$HEAD `TZ=UTC date --date now-$now +%H:%M:%S`\n" check_gpu &)
+    # parenthesis keeps it quiet (removes "[1] Done" etc..) https://stackoverflow.com/a/11111042
+    sleep $interval
+  done
+  #wait # wait for possibly unfinished jobs
+  read -t 1 -n 10000 discard # clear stdin, piled up during execution
+  printf "\x1b[?1049l" # disable alternate buffer
+}
+
+check
+
+# why didn't I just use `watch $interval check_gpu`?
+# because check_gpu is way slower (bout 2.2sec to execute) than nvidia-smi (0.064sec).
+# although `watch -n 3 -c check_gpu` seems to be working, it would have actually
+# 5.2 sec interval instead of 3 sec.
+# this script bypasses such problem.
