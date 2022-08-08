@@ -1,7 +1,8 @@
-# ignore all & Unignore all with extensions
+# ignore all & Unignore all with extensions and directories
 # automatically binary executables without extensions
-*
-!*.*
+**/*
+!**/*.*
+!**/
 
 # ignore all hidden
 .?*

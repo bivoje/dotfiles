@@ -34,9 +34,9 @@ silent=$2
 
 # setting for default profile
 # should be topologically ordered on dependency, the later, the more dependent
-package_candidate=(make build-essential rustup stack '-')
+package_candidate=(make build-essential ascii ipython rustup stack '-')
 # packages installed in reverse order
-package_install=(python3 tmux vim-plug vim tldr clf hc ascii curl upgrade)
+package_install=(python3-pip python3 tmux vim-plug vim tldr clf hc ascii curl upgrade)
 
 case "$profile" in
   "minimal")
@@ -166,6 +166,12 @@ echo "" # move down 1 line
 
 # package specific install methods, mid precedence
 # ====================================================
+
+install_package_ipython() {
+  # TODO
+  [ -n "$silent" ] && op="-s" || op=""
+  pip install ipython
+}
 
 # depends on curl
 install_package_vim-plug() {

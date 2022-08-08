@@ -227,3 +227,5 @@ map _i :call Paste_Func()<cr>
 if &diff
     colorscheme diffcolors
 endif
+
+let g:zig_fmt_autosave = 0

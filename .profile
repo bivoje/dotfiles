@@ -63,6 +63,6 @@ if command -v tmux &> /dev/null && [ -n "$PS1" ] && [ -z "$TMUX" ]; then
     *screen*) ;;
     *tmux*) ;;
     #*) exec tmux
-    *) tmux list-sessions && tmux attach || tmux
+    *) tmux list-sessions && tmux -2 attach || tmux -2
   esac
 fi
