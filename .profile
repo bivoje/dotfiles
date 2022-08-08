@@ -13,15 +13,19 @@ SCRIPT=$SCRIPT:":~/.profile"
 # for ssh logins, install and configure the libpam-umask package.
 umask 022 # newly created file gets permission ~022
 
-# FIXME this should be taken care at /etc/profile.d/01-locale-fix.sh
-locale-gen en_US.UTF-8
-export LANG=en_US.UTF-8
-export LANGUAGE=en_US.UTF-8
-export LC_ALL=en_US.UTF-8
+## FIXME this should be taken care at /etc/profile.d/01-locale-fix.sh
+#locale-gen en_US.UTF-8
+#export LANG=en_US.UTF-8
+#export LANGUAGE=en_US.UTF-8
+#export LC_ALL=en_US.UTF-8
+# FIXME for some reason, `locale-gen en_US.UTF-8` gives "sed: couldn't open temporary file /etc/sed0lKzhj: Permission denied" error...
+
 
 # FIXME append only when not included already? like .cargo/env does?
 export PATH=$PATH:$HOME/bin # for my programs
 export PATH=$PATH:$HOME/.local/bin # for stack
+
+export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:/$HOME/lib
 
 # for rustup / cargo
 if [ -e $HOME/.cargo/env ]; then
@@ -30,6 +34,10 @@ fi
 
 # used in fc, crontab
 export EDITOR=vim
+
+
+# ls -l gives date in formal '2022-06-24 12:10'
+export TIME_STYLE=long-iso
 
 # tldr output coloring
 # Possible settings are: black, red, green, yellow, blue, magenta, cyan,
@@ -44,17 +52,6 @@ export TLDR_PARAM='blue'
 # make clf use color always.
 # alternatively we can set 'alias clf "clf --color"' in bashrc
 export CLF_COLOR=1
-
-# convert windows path format to linux path format
-# '\' is escaped by the shell in ANY CASE,
-# so we need to pass the windows path via stdin to avoid substitution
-# e.g.
-#   $ ls `wp2lp`
-#   Z:\users\eunyoung\BIOSNAP\gene\reactome_human_TAS.tsv
-#   ^D
-#   /home/bivoje/Z/users/eunyoung/BIOSNAP/gene/reactome_human_TAS.tsv
-# assuming NAS is mounted to ~/Z on linux, Z:\ on windows
-wp2lp () { cat | tr '\\' '/' | sed 's/^\(.\):/\/home\/bivoje\/\1/'; }
 
 # auto tmux
 # https://unix.stackexchange.com/a/113768

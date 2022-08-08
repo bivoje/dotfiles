@@ -1,0 +1,31 @@
+div.CodeMirror,
+div.CodeMirror pre {
+ font-family: "Ubuntu Mono";
+} /* 코드 입력창 */
+
+/*
+.text_cell_render {
+  font-family: "Ubuntu Mono";
+  font-size: 12pt;
+} /* 마크 다운 */
+
+.output_result pre {
+  font-family: "D2coding";
+} /* 출력 결과 */
+
+
+.output_stdout pre {
+  font-family: "D2coding";
+} /* 출력 결과 */
+
+.output_stderr pre {
+  font-family: "D2coding";
+} /* 에러 결과 */
+
+/* 원래는 D2coding-ligature를 쓰려고 했는데, 끔찍하게도 monospace가 아님;; */
+
+/*
+table.dataframe {
+  font-family: "Ubuntu Mono";
+  font-size: 12pt;
+} /* DataFrame 출력 결과 */

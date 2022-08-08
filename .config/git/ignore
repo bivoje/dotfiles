@@ -1,8 +1,8 @@
 # ignore all & Unignore all with extensions and directories
-# automatically binary executables without extensions
-**/*
-!**/*.*
-!**/
+# automatically ignore binary executables without extensions
+**/*      # ignore all (possibly subdir) files
+!**/*.*   # rescue all (possibly subdir) files with extensions
+!**/      # rescue all (possibly subdir) directories
 
 # ignore all hidden
 .?*

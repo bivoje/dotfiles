@@ -1,7 +1,7 @@
 set fileencodings=utf8,euc-kr
 
 " remove trailing whitespaces before saving
-"   guard my extension
+"   guard by extension
 autocmd BufWritePre *.c,*.cpp,*.zig,*py,*rs :%s/\s\+$//e
 "   guard by filetype (whenever vim sets filetype)
 " autocmd FileType c,cpp autocmd BufWritePre <buffer> %s/\s\+$//e

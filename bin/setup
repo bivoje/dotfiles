@@ -34,18 +34,18 @@ silent=$2
 
 # setting for default profile
 # should be topologically ordered on dependency, the later, the more dependent
-package_candidate=(make build-essential ascii ipython rustup stack '-')
+package_candidate=(make build-essential ipython inotify-tools rustup stack '-')
 # packages installed in reverse order
 package_install=(python3-pip python3 tmux vim-plug vim tldr clf hc ascii curl upgrade)
 
 case "$profile" in
   "minimal")
-    package_candidate=(make build-essential hc ascii clf vim-plug tmux python3 rustup stack '-')
+    package_candidate=(make build-essential inotify-tools hc ascii clf vim-plug tmux python3 rustup stack '-')
     package_install=(vim tldr curl upgrade)
     ;;
   "nonroot")
     package_candidate=(make build-essential tmux python3 rustup stack '-')
-    package_install=(vim-plug tldr clf hc ascii)
+    package_install=(vim-plug tldr clf hc ascii inotify-tools-nonroot)
     ;;
   "") ;; # use default
   *) echo unkown profile "$1", loading default...
@@ -234,6 +234,20 @@ install_package_hc() {
     [ -n "$silent" ] && op="-q" || op=""
     cargo install $op --git https://github.com/bivoje/hex-calculator.git
   fi
+
+# depends on build-essentials & autotools-dev, automake
+install_package_inotify-tools-nonroot() {
+  git clone https://github.com/inotify-tools/inotify-tools.git
+  cd inotify-tools
+  mkdir target
+  ./autogen.sh
+  ./configure --prefix=`pwd`/target
+  make
+  make install
+  mv target/bin/* $HOME/bin
+  mkdir -p $HOME/lib
+  mv lib/* $HOME/lib
+}
 
 # system specific install methods, lowest precedence
 # ==================================================

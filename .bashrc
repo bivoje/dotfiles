@@ -123,6 +123,35 @@ if ! shopt -oq posix; then
   fi
 fi
 
+
+# convert windows path format to linux path format
+# '\' is escaped by the shell in ANY CASE,
+# so we need to pass the windows path via stdin to avoid substitution
+# e.g.
+#   $ ls `wp2lp`
+#   Z:\users\eunyoung\BIOSNAP\gene\reactome_human_TAS.tsv
+#   ^D
+#   /home/bivoje/Z/users/eunyoung/BIOSNAP/gene/reactome_human_TAS.tsv
+# assuming NAS is mounted to ~/Z on linux, Z:\ on windows
+wp2lp () { cat | tr '\\' '/' | sed 's/^\(.\):/\/home\/bivoje\/\1/'; }
+
+# ls ++ less; useful when exploring through unfamiliar directories
+# use with `!$` which gets expanded to the last arg of the last command
+es () { arg=${1:-.};
+  if ! [ -e "$arg" ]; then
+    echo file \'$arg\' not exists!
+    return 1
+  elif [ -d "$arg" ]; then
+    ls "$arg";
+  elif file "$arg" | grep -q 'text'; then
+    less "$arg"
+  else
+    file "$arg"
+  fi
+  return 0
+}
+
+
 # backup stty setting for malfunctioning program execution
 # do `reset ^J` and `stty sane ^J` to work in normal mode
 # do `stty $STTY` to recover terminal setting
