@@ -20,9 +20,12 @@ umask 022 # newly created file gets permission ~022
 #export LC_ALL=en_US.UTF-8
 # FIXME for some reason, `locale-gen en_US.UTF-8` gives "sed: couldn't open temporary file /etc/sed0lKzhj: Permission denied" error...
 
+
 # FIXME append only when not included already? like .cargo/env does?
 export PATH=$PATH:$HOME/bin # for my programs
 export PATH=$PATH:$HOME/.local/bin # for stack
+
+export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:/$HOME/lib
 
 # for rustup / cargo
 if [ -e $HOME/.cargo/env ]; then
