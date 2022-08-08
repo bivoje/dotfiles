@@ -50,21 +50,6 @@ export TLDR_PARAM='blue'
 # alternatively we can set 'alias clf "clf --color"' in bashrc
 export CLF_COLOR=1
 
-# convert windows path format to linux path format
-# '\' is escaped by the shell in ANY CASE,
-# so we need to pass the windows path via stdin to avoid substitution
-# e.g.
-#   $ ls `wp2lp`
-#   Z:\users\eunyoung\BIOSNAP\gene\reactome_human_TAS.tsv
-#   ^D
-#   /home/bivoje/Z/users/eunyoung/BIOSNAP/gene/reactome_human_TAS.tsv
-# assuming NAS is mounted to ~/Z on linux, Z:\ on windows
-wp2lp () { cat | tr '\\' '/' | sed 's/^\(.\):/\/home\/bivoje\/\1/'; }
-
-# ls ++ less; useful when exploring through unfamiliar directories
-# use with `!$` which gets expanded to the last arg of the last command
-es () { arg=${1:-.}; if [ -d $arg ]; then ls $arg; else less $arg; fi }
-
 # auto tmux
 # https://unix.stackexchange.com/a/113768
 if command -v tmux &> /dev/null && [ -n "$PS1" ] && [ -z "$TMUX" ]; then
