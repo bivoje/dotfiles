@@ -8,92 +8,137 @@
 
 # TODO parameterize `-i ~/.ssh/shepherd_id_rsa`, `shepherd[2-7]`
 
-import subprocess, os, io
+import subprocess, os, io, sys
 import pandas as pd
 
 my_env = os.environ.copy()
 # https://askubuntu.com/a/1075271
 my_env['PDSH_SSH_ARGS_APPEND'] = '-i ~/.ssh/shepherd_id_rsa -o VisualHostKey=no'
 
-
-# In[ ]:
-
-
-# # see `nvidia-smi --help-query-gpu` for available fields
-process = subprocess.Popen(
-   "pdsh -w shepherd[2-7] -R ssh nvidia-smi --format=csv,noheader --query-gpu=index,gpu_uuid,power.draw,utilization.gpu,utilization.memory,temperature.gpu,pstate".split(),
-   stdout=subprocess.PIPE, env=my_env)
-output, error = process.communicate()
-# nvidia-smi adds space after comma, so we have to strip it. but only python parser engine supports `delimiter=', '`.
-gpu_info = pd.read_csv(io.BytesIO(output), delimiter=', ', engine='python', names=['gpu_i', 'uuid', 'power', 'util', 'mem', 'temp', 'effi'])
-gpu_info = gpu_info.astype({'uuid':'str'})
-gpu_info[['host','gpu_i']] = gpu_info['gpu_i'].str.split(': ',1,expand=True)
-#gpu_info.sort_values(by='id', inplace=True)
-gpu_info
+sys.argv.append("")
+server = sys.argv[1] or "localhost"
 
 
 # In[ ]:
 
 
-#for l,x in gpu_info.loc[4].iteritems(): print(f"'{l}' '{x}'") # all stripped out!
+def get_gpu_info_remote(server):
+  # see `nvidia-smi --help-query-gpu` for available fields
+  process = subprocess.Popen(
+      f"pdsh -w {server} -R ssh nvidia-smi --format=csv,noheader --query-gpu=index,gpu_uuid,power.draw,utilization.gpu,utilization.memory,temperature.gpu,pstate,memory.total,memory.used".split(),
+      stdout=subprocess.PIPE, env=my_env)
+  output, error = process.communicate()
+  # nvidia-smi adds space after comma, so we have to strip it. but only python parser engine supports `delimiter=', '`.
+  gpu_info = pd.read_csv(io.BytesIO(output), delimiter=', ', engine='python',
+                         names=['gpu_i', 'uuid', 'power', 'util', 'mem_rw', 'temp', 'effi', 'mem_total', 'mem_used'])
+  gpu_info = gpu_info.astype({'uuid':'str'})
+  gpu_info[['host','gpu_i']] = gpu_info['gpu_i'].str.split(': ',1,expand=True)
+  #gpu_info.sort_values(by='id', inplace=True)
+  return gpu_info
 
 
 # In[ ]:
 
 
-# see `nvidia-smi --help-query-compute-apps` for available fields
-process = subprocess.Popen(
-   "pdsh -w shepherd[2-7] -R ssh nvidia-smi --format=csv,noheader --query-compute-apps=pid,used_memory,name,gpu_uuid".split(),
-   stdout=subprocess.PIPE, env=my_env)
-output, error = process.communicate()
-# nvidia-smi adds space after comma, so we have to strip it. but only python parser engine supports `delimiter=', '`.
-prc_info = pd.read_csv(io.BytesIO(output), delimiter=', ', engine='python', names=['pid', 'mem', 'name', 'uuid'])
-prc_info[['host','pid']] = prc_info['pid'].str.split(':',1,expand=True)
-prc_info = prc_info.astype({'uuid':'str', 'pid':'int'})
-
-#prc_info.sort_values(by='id', inplace=True)
-prc_info
+def get_gpu_info_local():
+  process = subprocess.Popen(
+      f"nvidia-smi --format=csv,noheader --query-gpu=index,gpu_uuid,power.draw,utilization.gpu,utilization.memory,temperature.gpu,pstate,memory.total,memory.used".split(),
+      stdout=subprocess.PIPE, env=my_env)
+  output, error = process.communicate()
+  gpu_info = pd.read_csv(io.BytesIO(output), delimiter=', ', engine='python',
+                         names=['gpu_i', 'uuid', 'power', 'util', 'mem_rw', 'temp', 'effi', 'mem_total', 'mem_used'])
+  gpu_info = gpu_info.astype({'uuid':'str'})
+  gpu_info['host'] = 'localhost'
+  return gpu_info
 
 
 # In[ ]:
 
 
-#for l,x in prc_info.loc[4].iteritems(): print(f"'{l}' '{x}'") # all stripped out!
+def get_prc_info_remote(server):
+  # see `nvidia-smi --help-query-compute-apps` for available fields
+  process = subprocess.Popen(
+      f"pdsh -w {server} -R ssh nvidia-smi --format=csv,noheader --query-compute-apps=pid,used_memory,name,gpu_uuid".split(),
+      stdout=subprocess.PIPE, env=my_env)
+  output, error = process.communicate()
+  # nvidia-smi adds space after comma, so we have to strip it. but only python parser engine supports `delimiter=', '`.
+  prc_info = pd.read_csv(io.BytesIO(output), delimiter=', ', engine='python', names=['pid', 'mem', 'name', 'uuid'])
+  prc_info[['host','pid']] = prc_info['pid'].str.split(':',1,expand=True)
+  prc_info = prc_info.astype({'uuid':'str', 'pid':'int'})
+  #prc_info.sort_values(by='id', inplace=True)
+  return prc_info
 
 
 # In[ ]:
 
 
-# https://www.baeldung.com/linux/measure-separate-cpu-usage-for-process#Linux%20ps
-# Note that `pcpu` or `%cpu` represents cpu utilization averaged thoughout whole process lifetime
-# it shows different value from `CPU%` of `htop`
-process = subprocess.Popen(
-    #'pdsh -w shepherd[2-7] -R ssh ps --no-headers -o " %U %p %C %x %c #%a#" -p `nvidia-smi --format=csv,noheader --query-compute-apps=pid`'.split(),
-    # each fields of result of `ps` is width-adjusted to form regular table. i.e. extra spaces persist if parsed as CSV.
-    # moreover, processes executed with ',' in their arguments (e.g. `cut -f1,2,3 -d' '`) could be parsed as seperate fields,
-    # which breaks read_csv function. I decided to use exploit quoting behavior, and use '#' as quote character, since '#' cannot
-    # possibly appear in `args` (they get commented out!).
-    # it is noted that `delim_whitespace=True` has same effect as `sep='\s+'` but is not true. `sep='\s+'` requires python engine
-    # which does not handle quoted fields properly when len(sep) > 1. since `delim_whitespace=True` can be used with c engine,
-    # quoting issue is gone.
-    'pdsh -w shepherd[2-7] -R ssh ps ww --no-headers -o " %U %p %C %x %c #%a" -p 1 `nvidia-smi --format=csv,noheader --query-compute-apps=pid` | sed "s/$/#/"'.split(),
-    # adding initial-proc (pid=1) in the result to prevent `ps` errors when nvidia gives no pids
-    # these dummy entries will be dropped when joining with gpu_info.
-    # training quote should be attached afterwards since if `%a` is not the last format specifier, ps would truncate the field.
-    # also note that `ww` option notifies column width to be unlimited preventing possible truncation.
-   stdout=subprocess.PIPE, env=my_env)
-output, error = process.communicate()
-#print(output.decode('ascii'))
-ps_info = pd.read_csv(io.BytesIO(output), delim_whitespace=True, quotechar='#', names=['host', 'user', 'pid', 'cpu', 'time', 'cmd', 'args'])
-ps_info['host'] = ps_info['host'].str[:-1] # remove trailing colon
-ps_info['args'] = ps_info['args'].str.strip() # quotation of args conserved trailing whitespaces
-ps_info
+def get_prc_info_local():
+  process = subprocess.Popen(
+      f"nvidia-smi --format=csv,noheader --query-compute-apps=pid,used_memory,name,gpu_uuid".split(),
+      stdout=subprocess.PIPE, env=my_env)
+  output, error = process.communicate()
+  prc_info = pd.read_csv(io.BytesIO(output), delimiter=', ', engine='python', names=['pid', 'mem', 'name', 'uuid'])
+  prc_info = prc_info.astype({'uuid':'str', 'pid':'int'})
+  prc_info['host'] = 'localhost'
+  return prc_info
 
 
 # In[ ]:
 
 
-#for l,x in ps_info.loc[4].iteritems(): print(f"'{l}' '{x}'") # all stripped out!
+def get_ps_info_remote(server):
+  # https://www.baeldung.com/linux/measure-separate-cpu-usage-for-process#Linux%20ps
+  # Note that `pcpu` or `%cpu` represents cpu utilization averaged thoughout whole process lifetime
+  # it shows different value from `CPU%` of `htop`
+  process = subprocess.Popen(
+      #'pdsh -w shepherd[2-7] -R ssh ps --no-headers -o " %U %p %C %x %c #%a#" -p `nvidia-smi --format=csv,noheader --query-compute-apps=pid`'.split(),
+      # each fields of result of `ps` is width-adjusted to form regular table. i.e. extra spaces persist if parsed as CSV.
+      # moreover, processes executed with ',' in their arguments (e.g. `cut -f1,2,3 -d' '`) could be parsed as seperate fields,
+      # which breaks read_csv function. I decided to use exploit quoting behavior, and use '#' as quote character, since '#' cannot
+      # possibly appear in `args` (they get commented out!).
+      # it is noted that `delim_whitespace=True` has same effect as `sep='\s+'` but is not true. `sep='\s+'` requires python engine
+      # which does not handle quoted fields properly when len(sep) > 1. since `delim_whitespace=True` can be used with c engine,
+      # quoting issue is gone.
+      f'pdsh -w {server} -R ssh ps ww --no-headers -o " %U %p %C %x %c #%a" -p 1 `nvidia-smi --format=csv,noheader --query-compute-apps=pid` | sed "s/$/#/"'.split(),
+      # adding initial-proc (pid=1) in the result to prevent `ps` errors when nvidia gives no pids
+      # these dummy entries will be dropped when joining with gpu_info.
+      # training quote should be attached afterwards since if `%a` is not the last format specifier, ps would truncate the field.
+      # also note that `ww` option notifies column width to be unlimited preventing possible truncation.
+      stdout=subprocess.PIPE, env=my_env)
+  output, error = process.communicate()
+  ps_info = pd.read_csv(io.BytesIO(output), delim_whitespace=True, quotechar='#',
+                        names=['host', 'user', 'pid', 'cpu', 'time', 'cmd', 'args'])
+  ps_info['host'] = ps_info['host'].str[:-1] # remove trailing colon
+  ps_info['args'] = ps_info['args'].str.strip() # quotation of args conserved trailing whitespaces
+  return ps_info
+
+
+# In[ ]:
+
+
+def get_ps_info_local():
+  process = subprocess.Popen(
+      ['bash', '-c', 'ps ww --no-headers -o " %U %p %C %x %c #%a" -p 1 `nvidia-smi --format=csv,noheader --query-compute-apps=pid` | sed "s/$/#/"'],
+      stdout=subprocess.PIPE, env=my_env)
+  output, error = process.communicate()
+  ps_info = pd.read_csv(io.BytesIO(output), delim_whitespace=True, quotechar='#',
+                        names=['user', 'pid', 'cpu', 'time', 'cmd', 'args'])
+  ps_info['args'] = ps_info['args'].str.strip() # quotation of args conserved trailing whitespaces
+  ps_info['host'] = 'localhost'
+  return ps_info
+
+
+# In[ ]:
+
+
+if server == 'localhost':
+  gpu_info = get_gpu_info_local()
+  prc_info = get_prc_info_local()
+  ps_info = get_ps_info_local()
+else:
+  gpu_info = get_gpu_info_remote(server)
+  prc_info = get_prc_info_remote(server)
+  ps_info = get_ps_info_remote(server)
 
 
 # In[ ]:
@@ -108,7 +153,7 @@ prc_gpu_ps = pd.merge(prc_gpu, ps_info, how='left', left_on=['host','pid'], righ
 # In[ ]:
 
 
-tbl = prc_gpu_ps[['host', 'gpu_i', 'effi', 'temp', 'power', 'util', 'mem_gpu', 'pid', 'mem_prc', 'user', 'time', 'args']].sort_values(by=['host','gpu_i','pid'])
+tbl = prc_gpu_ps[['host', 'gpu_i', 'effi', 'temp', 'power', 'util', 'mem_total', 'mem_used', 'mem_rw', 'pid', 'mem', 'user', 'time', 'args']].sort_values(by=['host','gpu_i','pid'])
 tbl
 
 
@@ -170,20 +215,28 @@ def format_row(row, skip_gpu=False, skip_prc=False):
         util_range = [0, 20, 40, 60, 80, 90]
         util = int(row['util'][:-2])
         fields.append((5, 6-bisect_left(util_range, util), f"{util} %"))
-    else: fields.append((5, 6, 'gpu'))
+    else: fields.append((5, 6, 'gpu%'))
 
-    # mem_gpu: utilization of gpu cluster memory
+    # gpmem: utilization of total memory space
     if not isHeader:
-        mem_range = [0, 20, 40, 60, 80, 90]
-        mem = int(row['mem_gpu'][:-2])
-        fields.append((5, 6-bisect_left(mem_range, util), f"{mem} %"))
-    else: fields.append((5, 6, 'gpmem'))
+        mem_util_range = [0, 20, 40, 60, 80, 90]
+        mem_util = (100 * int(row['mem_used'][:-4])) // int(row['mem_total'][:-4])
+        c = (bisect_left(mem_util_range, mem_util) + 6) % 7 # 0123456 -> 6012345
+        fields.append((5, c, f"{mem_util} %"))
+    else: fields.append((5, 6, 'mem%'))
+
+#     # mem_rw: utilization of gpu cluster memory r/w bandwidth
+#     if not isHeader:
+#         mem_range = [0, 20, 40, 60, 80, 90]
+#         mem = int(row['mem_rw'][:-2])
+#         fields.append((5, 6-bisect_left(mem_range, util), f"{mem} %"))
+#     else: fields.append((5, 6, 'memrw'))
 
     # pid
     fields.append((5, 6, str(row['pid']) if not isHeader else 'pid'))
 
     # mem_prc
-    fields.append((8, 6, str(row['mem_prc']) if not isHeader else 'cpu mem'))
+    fields.append((8, 6, str(row['mem']) if not isHeader else 'gpu mem'))
 
     # user
     fields.append((8, 6, str(row['user']) if not isHeader else 'user'))
