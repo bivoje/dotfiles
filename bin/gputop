@@ -6,8 +6,15 @@
 # http://www.pixelbeat.org/programming/stdio_buffering/ - this was good but non helping :(
 bufson() { ret=`bash -c "$2"`; printf "$1"; echo -e "$ret"; }
 
-interval=${1:-3} # defaults to 3 sec interval or use argv[1] if specified
-server=${2:-shepherd[2-7]}
+
+if [ -z `which pdsh` ]; then
+  default_server="localhost"
+else
+  default_server="shepherd[2-7]"
+fi
+
+server=${1:-$default_server}
+interval=${2:-3} # defaults to 3 sec interval or use argv[1] if specified
 HEAD="refreshing every $interval sec. press ENTER to exit."
 
 # don't exit with ctrl-c. it prevents restoring orig buffer.

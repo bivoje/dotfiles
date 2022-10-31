@@ -13,7 +13,11 @@ import pandas as pd
 
 my_env = os.environ.copy()
 # https://askubuntu.com/a/1075271
-my_env['PDSH_SSH_ARGS_APPEND'] = '-i ~/.ssh/shepherd_id_rsa -o VisualHostKey=no'
+
+if 'GPUTOP_RSA_ID' in my_env:
+  rsa_id = my_env['GPUTOP_RSA_ID']
+else: rsa_id = "~/.ssh/id_rsa"
+my_env['PDSH_SSH_ARGS_APPEND'] = f"-i {rsa_id} -o VisualHostKey=no"
 
 sys.argv.append("")
 server = sys.argv[1] or "localhost"
@@ -245,7 +249,14 @@ def format_row(row, skip_gpu=False, skip_prc=False):
     fields.append((12, 6, str(row['time']) if not isHeader else 'start time'))
 
     # args
-    fields.append((-50, 6, str(row['args'])if not isHeader else 'command'))
+    if not isHeader:
+        command = str(row['args'])
+        if 'python -m ipykernel_launcher' in command and 'jupyter' in command:
+            command = "<ipython-jupyeter>"
+        elif 'python' in command and '.snakemake' in command:
+            command = "<snakemake> " + command.split('/')[-1]
+        fields.append((-50, 6, command))
+    else: fields.append((-50, 6, 'command'))
 
     ## format join
 
@@ -265,7 +276,8 @@ def format_row(row, skip_gpu=False, skip_prc=False):
 
     line = sep.join(colored(c, justify(w,s)) for w,c,s in fields)
 
-    return line if not isHeader else "\x1b[7m" + line + "\x1b[27m"
+    return line if not isHeader else "\x1b[7m" + line + "|\x1b[27m"
+    # without trailijng '|' in header, trailing spaces are not shown (in white)
 
 # print(format_row('header'))
 # print(format_row(tbl.loc[0], skip_gpu=False, skip_prc=False))

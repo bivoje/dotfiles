@@ -49,6 +49,9 @@ export TLDR_DESCRIPTION='green'
 export TLDR_CODE='red'
 export TLDR_PARAM='blue'
 
+
+export GPUTOP_RSA_ID=~/.ssh/shepherd_id_rsa
+
 # make clf use color always.
 # alternatively we can set 'alias clf "clf --color"' in bashrc
 export CLF_COLOR=1
