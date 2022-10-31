@@ -108,7 +108,7 @@ set nu
 "set nuw=?
 
 " show line number relatively to cursor line
-"set rnu 
+"set rnu
 
 " # of additional rows to show above/below the cursor
 set scrolloff=3 " set so=3
@@ -116,7 +116,7 @@ set scrolloff=3 " set so=3
 " force this settings when opening rust and python files
 autocmd FileType rust,python setlocal expandtab shiftwidth=2 softtabstop=2
 
-" fold code 
+" fold code
 set foldmethod=syntax
 
 " don't fold code when just opened
@@ -148,84 +148,40 @@ set matchpairs+=<:>
 "set tabline
 set wildmenu
 
-"wrapped lines can be traveled with g[0^jk$] 
-"% sends you to closest opening bracket before the cursor
+" wrapped lines can be traveled with g[0^jk$]
+" % sends you to closest opening bracket before the cursor
 
 " redraw screen once after the macro execution is completeted
 set lazyredraw
 
+" help cmd context
+" :h :r         ex command (command starting with a colon)
+" :h r          normal mode
+" :h v_r        visual mode
+" :h i_CTRL-W   insert mode
+" :h c_CTRL-R   ex command line
+" :h /\r        search pattern (in this case, :h \r also works)
+" :h 'ro'       option
+" :h -r         Vim argument (starting Vim)
 
-" from https://vi.stackexchange.com/a/348
-function! Paste_Func()
-    let s:inPaste = &paste
-    if !s:inPaste
-        set paste
-    endif
-
-    echom s:inPaste
-    augroup paste_callback
-        autocmd!
-        autocmd InsertLeave <buffer> call Paste_End()
-    augroup END
-
-    startinsert
-endfunction
-
-function! Paste_End()
-    augroup paste_callback
-        autocmd!
-    augroup END
-    augroup! paste_callback
-
-    if !s:inPaste
-        set nopaste
-    endif
-endfunction
-
-map _i :call Paste_Func()<cr>
-
-
-
-
-" code from:
-" http://stackoverflow.com/questions/5585129/pasting-code-into-terminal-window-into-vim-on-mac-os-x
-" then https://coderwall.com/p/if9mda
-" and then https://github.com/aaronjensen/vimfiles/blob/59a7019b1f2d08c70c28a41ef4e2612470ea0549/plugin/terminaltweaks.vim
-" to fix the escape time problem with insert mode.
-" then finally https://github.com/ConradIrwin/vim-bracketed-paste/blob/master/plugin/bracketed-paste.vim
-"
-" Docs on bracketed paste mode:
-" http://www.xfree86.org/current/ctlseqs.html
-" Docs on mapping fast escape codes in vim
-" http://vim.wikia.com/wiki/Mapping_fast_keycodes_in_terminal_Vim
-
-"if exists("g:loaded_bracketed_paste")
-"  finish
-"endif
-"let g:loaded_bracketed_paste = 1
-"
-"let &t_ti .= "\<Esc>[?2004h"
-"let &t_te = "\e[?2004l" . &t_te
-"
-"function! XTermPasteBegin(ret)
-"  set pastetoggle=<f29>
-"  set paste
-"  return a:ret
-"endfunction
-"
-"execute "set <f28>=\<Esc>[200~"
-"execute "set <f29>=\<Esc>[201~"
-"map <expr> <f28> XTermPasteBegin("i")
-"imap <expr> <f28> XTermPasteBegin("")
-"vmap <expr> <f28> XTermPasteBegin("c")
-"cmap <f28> <nop>
-"cmap <f29> <nop>
-"FIXME exit insert mode after pasting when invoked during normal mode?
+" since version 8, vim supports bracketed-paste
+" stolen from :help xterm-bracketed-paste
+if &term =~ "screen"
+  let &t_BE = "\e[?2004h"
+  let &t_BD = "\e[?2004l"
+  exec "set t_PS=\e[200~"
+  exec "set t_PE=\e[201~"
+endif
 
 " use my-defined color scheme for vimdiff use
 " the default for vimdiff is no less than an eyebleach
 if &diff
     colorscheme diffcolors
 endif
+
+"vim-plug section
+call plug#begin('~/.vim/plugged')
+  Plug 'ziglang/zig.vim'
+call plug#end()
 
 let g:zig_fmt_autosave = 0
