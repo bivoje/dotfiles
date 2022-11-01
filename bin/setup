@@ -34,9 +34,9 @@ silent=$2
 
 # setting for default profile
 # should be topologically ordered on dependency, the later, the more dependent
-package_candidate=(make build-essential inotify-tools rustup stack '-')
+package_candidate=(make build-essential ipython inotify-tools rustup stack '-')
 # packages installed in reverse order
-package_install=(python3 tmux vim-plug vim tldr clf hc ascii curl upgrade)
+package_install=(python3-pip python3 tmux vim-plug vim tldr clf hc ascii curl upgrade)
 
 case "$profile" in
   "minimal")
@@ -70,14 +70,15 @@ while [ ${#package_candidate[@]} -ne 1 ]; do
   package_candidate=("${package_candidate[@]:1}")
 
   cand_num=${#package_candidate[@]}
+  echo -en "\x1b[2K" # erase the entire line
   echo -ne "packages to be installed |\x1b[32m"
   for pack in "${package_install[@]}"; do
     echo -n " $pack"
   done
   echo -e "\x1b[0m"
 
-  echo ""
-  echo -ne " installation candidates |\x1b[31m $package"
+  echo -e "\x1b[2K" # erase the entire line
+  echo -en " installation candidates |\x1b[31m $package"
   for (( i = 0 ; i < $cand_num ; i++ )) ; do # FIXME forces bash
     pack="${package_candidate[$i]}"
     if [ "$pack" == "-" ]; then
@@ -93,7 +94,7 @@ while [ ${#package_candidate[@]} -ne 1 ]; do
   echo -en "\x1b[0m"
 
   echo -e "\x1b[2A" # move cursor up 2 lines
-  echo -en "\x1b[2K"
+  echo -en "\x1b[2K" # erase the entire line
   echo -ne "  do you want to install \x1b[34m$package\x1b[0m? (Ynqader?) "
   read -e ans
 
@@ -121,7 +122,8 @@ while [ ${#package_candidate[@]} -ne 1 ]; do
   elif [ "$ans" == D ] || [ "$ans" == d ]; then
     break
   elif [ "$ans" == E ] || [ "$ans" == e ]; then
-    read -p "packages to install: " -a package_additional
+    echo -en "\x1b[1A\x1b[2K" # replace orig prompt
+    read -p "  packages to install: " -a package_additional
     # package_install.extend_front(package_additional.drain())
     package_install=("${package_additional[@]}" "${package_install[@]}")
     package_additional=()
@@ -139,11 +141,12 @@ while [ ${#package_candidate[@]} -ne 1 ]; do
   else
     # package_candidate.push_front(pakcage)
     package_candidate=("$package" "${package_candidate[@]}")
+    echo "" # move cursor 1 line down
     echo -en "\x1b[35m"
     echo "y - install selected package"
     echo "n - do not install selected package"
     echo "q - quit; do not install anything"
-    echo "a - install this and any later packages till -"
+    echo "a - install this and any later packages till '!'"
     echo "d - do not install this or any of the remaining packages"
     echo "e - manually add package name"
     echo "r - revert last acepttance"
@@ -166,6 +169,12 @@ echo "" # move down 1 line
 
 # package specific install methods, mid precedence
 # ====================================================
+
+install_package_ipython() {
+  # TODO
+  [ -n "$silent" ] && op="-s" || op=""
+  pip install ipython
+}
 
 # depends on curl
 install_package_vim-plug() {
@@ -192,6 +201,7 @@ install_package_stack() {
 }
 
 # depends on curl
+# FIXME tldr has runtime dependency on unzip
 install_package_tldr() {
   [ -n "$silent" ] && op="-s" || op=""
   curl $op -o ~/bin/tldr https://raw.githubusercontent.com/raylee/tldr-sh-client/master/tldr && \
@@ -228,6 +238,7 @@ install_package_hc() {
     [ -n "$silent" ] && op="-q" || op=""
     cargo install $op --git https://github.com/bivoje/hex-calculator.git
   fi
+}
 
 # depends on build-essentials & autotools-dev, automake
 install_package_inotify-tools-nonroot() {

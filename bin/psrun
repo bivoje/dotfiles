@@ -1,0 +1,105 @@
+#!/bin/bash
+
+# options
+# - positional args are files to watch for
+# - l, lang: use language default config if '-c' or '-e' is omitted
+# - c, compile: compilation command. $n will be substituted with 'files'.
+# - e, execute: execution command. $n will be substituted with 'files'.
+# - d, execute: execution command. $n will be substituted with 'files'.
+# - n, dry: show scripts to be run
+
+# usage
+# $ psrun -l brainfuck ps.gs input
+# $ psrun -l rust ps.rs input
+# $ psrun -l rust -c 'rustc --edition=2018 $1 -o ps' ps.rs input
+# $ psrun -l rust -e '"export RUST_BACKTRACE=full; ./ps < $2"' ps.rs input
+      
+
+default_compile() {
+  case $1 in
+    rust)
+      echo 'rustc --color=always --edition=2021 $1 -o ps' ;;
+    *) echo '' ;;
+  esac
+}
+
+default_execute() {
+  case $1 in
+    rust)
+      echo '"export RUST_BACKTRACE=1; ./ps < $2"' ;;
+    brainfuck)
+      echo 'cat $2 | ./golfscript.rb $1' ;;
+    *) echo '' ;;
+  esac
+}
+
+# substitute $var 's with current global & parameter bindings
+# usage: export IT="rock"; RET="`echo '$1 hit $2 with $IT' | subst_args 'John' 'Jane'`"
+# NOTE $line only read till newline
+subst_args() {
+  read line
+  eline="echo $line"
+  echo "`eval \"$eline\"`"
+}
+
+LANG=''
+COMPILE=''
+EXECUTE=''
+FILES=()
+DRY='false'
+
+while [[ $# -gt 0 ]]; do
+  case $1 in
+    -l|--lang)
+      LANG=$2
+      shift; shift ;;
+    -c|--compile)
+      COMPILE=$2
+      shift; shift ;;
+    -e|--execute)
+      EXECUTE=$2
+      shift; shift ;;
+    -n|--dry)
+      DRY='true'
+      shift ;;
+    -*|--*)
+      unknown
+      shift; shift ;;
+    *)
+      FILES+=($1)
+      shift ;;
+  esac
+done
+
+if [ -n "$LANG" ]; then
+  if [ -z "$COMPILE" ]; then
+    COMPILE="`default_compile $LANG`"
+  fi
+
+  if [ -z "$EXECUTE" ]; then
+    EXECUTE="`default_execute $LANG`"
+  fi
+fi
+
+ECOMPILE="`echo $COMPILE | subst_args ${FILES[@]}`"
+EEXECUTE="`echo $EXECUTE | subst_args ${FILES[@]}`"
+
+if [ "$DRY" == 'true' ]; then
+  echo '$LANG    ' $LANG
+  echo '$COMPILE ' $COMPILE
+  echo '$EXECUTE ' $EXECUTE
+  echo '$FILES   ' ${FILES[@]}
+
+  echo '$ECOMPILE' $ECOMPILE
+  echo '$EEXECUTE' $EEXECUTE
+
+  echo '(set -o pipefail &&' $ECOMPILE '2>&1 | head -40)' "\\"
+  echo "  " '&& timeout --signal KILL 5 bash -c' \" "$EEXECUTE" \" '< input'
+  exit
+fi
+
+while inotifywait -e modify -e move -r .; do
+  clear;
+  (set -o pipefail && $ECOMPILE 2>&1 | head -40) \
+    && timeout --signal KILL 5 bash -c "$EEXECUTE" < input
+done
