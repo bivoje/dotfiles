@@ -1,18 +1,120 @@
+" use ':so %' to source current file
+
+" TODO
+" use CTRL-U, CTRL_W while insert mode!
+
+" applied when opening file
 set fileencodings=utf8,euc-kr
+" applied when editing file
+set encoding=utf8
+
+" eol chars preference
+set fileformats=unix,dos " set ffs
+
 
 " remove trailing whitespaces before saving
-"   guard by extension
-autocmd BufWritePre *.c,*.cpp,*.zig,*py,*rs :%s/\s\+$//e
-"   guard by filetype (whenever vim sets filetype)
-" autocmd FileType c,cpp autocmd BufWritePre <buffer> %s/\s\+$//e
-" Note that filetypes that are detected automatically can be found in
-" /usr/share/vim/vim*/filetype.vim
-" and corresponding syntax files are in
-" /usr/share/vim/vim*/syntax/*
-" https://vi.stackexchange.com/a/16950
+fun! CleanTrailingSpaces()
+    let save_cursor = getpos(".")
+    let old_query = getreg('/')
+    silent! %s/\s\+$//e
+    call setpos('.', save_cursor)
+    call setreg('/', old_query)
+endfun
+if has("autocmd")
+    "   guard by extension
+    autocmd BufWritePre *.c,*.cpp,*.zig,*py,*rs,*sh,*.hs,*.js :call CleanTrailingSpaces()
+    "   guard by filetype (whenever vim sets filetype)
+    "autocmd FileType c,cpp autocmd BufWritePre <buffer> %s/\s\+$//e
+    " Note that filetypes that are detected automatically can be found in /usr/share/vim/vim*/filetype.vim
+    " and corresponding syntax files are in /usr/share/vim/vim*/syntax/*
+    " https://vi.stackexchange.com/a/16950
+endif
+" TODO check if unknown filetype and warn on load?
+
+" FIXME
+" persistent undo. undo history prevails even after exit
+" some sensitive info could remain in undofiles though..
+if exists("&undodir")
+    try
+        set undodir=~/.vim_runtime/temp_dirs/undodir
+        set undofile
+    catch
+    endtry
+endif
+
+" bash-like keymaps for command mode editing
+cnoremap <C-A> <Home>
+cnoremap <C-E> <End>
+cnoremap <C-K> <C-U>
+cnoremap <C-P> <Up>
+cnoremap <C-C> <Down>
+" TODO more..?
+
+" how to how _invisible_ characters
+" use 'set list' to view reveal them
+set lcs=tab:▸\ ,trail:·,eol:¬,nbsp:_
 
 " :noh to remove current highlights
 set hlsearch
+
+" use space to remove current hightlighs
+noremap <silent> <space> :noh<cr>
+
+" apply search while typing
+"set incsearch
+
+" case insensitive search
+" case sensitive only when search string includes upper case
+"set ignorecase smartcase
+" or you can use /\cSEARCH for temporary case insensitive search
+
+" enable special classes (\a, \w..) in regex
+set magic
+
+" blink to a opening pair (when) closing bracket typed
+set showmatch
+" blink how for how long? * 0.1 sec
+set matchtime=1 " set mat
+
+" prevent annoying bells
+"set belloff=all
+
+" wrap the selected text with parenthesis or quote
+" direct macro execution while on visual mode does not seem to work properly
+" so i decided to avoid using @ to invoke macro and repurposed it
+" Note that for visual block, it does not work vertically.. use macro instead..
+vnoremap @( <esc>`>a)<esc>`<i(<esc>
+vnoremap @[ <esc>`>a]<esc>`<i[<esc>
+vnoremap @{ <esc>`>a}<esc>`<i{<esc>
+vnoremap @" <esc>`>a"<esc>`<i"<esc>
+vnoremap @' <esc>`>a'<esc>`<i'<esc>
+vnoremap @` <esc>`>a`<esc>`<i`<esc>
+
+" auto complete parenthesis or quote
+" remove '@' prefix to get annoying, VScode style auto completion
+" it became rather hard to write '@' and \"@" in this way though..
+inoremap @( ()<esc>i
+inoremap @[ []<esc>i
+inoremap @{ {<cr><cr>}<esc>ki<tab>
+inoremap @" ""<esc>i
+inoremap @' ''<esc>i
+inoremap @` ``<esc>i
+
+" like notion's abbreviation. cannot put '@' in the first place though.
+iab now@ <C-r>=strftime("%y-%m-%d %H:%M:%S")<cr>
+
+" move between windows faster
+noremap <C-j> <C-W>j
+noremap <C-k> <C-W>k
+noremap <C-h> <C-W>h
+noremap <C-l> <C-W>l
+
+" move between tabs faster
+noremap tn :tabn<cr>
+noremap tp :tabp<cr>
+noremap <C-k> <C-W>k
+noremap <C-h> <C-W>h
+noremap <C-l> <C-W>l
 
 " jk for esc everywhere!
 inoremap jk <esc>
@@ -49,7 +151,13 @@ inoremap <Left> <NOP>
 " set exrc
 
 " use colorscheme ron
-colo ron
+try
+  colo ron
+catch
+endtry
+
+" will use lighter colors within the colorscheme
+set background=dark
 
 " hold and move current line up/downward
 nnoremap <A-j> :m .+1<CR>==
@@ -66,10 +174,10 @@ nnoremap <C-n> :echo getline(search('\v^[[:alpha:]$_]', "bn", 1, 100))<CR>
 " 'Ctrl-N' were used as synonym to 'j'
 
 " auto indent when new line created
-set autoindent
+set autoindent " set ai
 
 " guess the indentation by syntax context
-set smartindent
+set smartindent " set si
 
 " # of columns that <tab> would occupy
 set tabstop=8
@@ -77,8 +185,11 @@ set tabstop=8
 " use equivalent # of space whenever tab
 set expandtab " set et
 
+" when inserting tab at ^, use shiftwidth instead of tabstop
+set smarttab
+
 " base indent width
-set shiftwidth=2
+set shiftwidth=4
 
 " show line and column number
 set ruler
@@ -86,8 +197,8 @@ set ruler
 " show cmd mid input
 set showcmd
 
-" syntax highlighting
-syntax on
+" syntax highlighting, use 'on' to respect vim's defaults
+syntax enable
 
 " make backspaces more powerfull
 set backspace=indent,eol,start
@@ -100,7 +211,7 @@ set backspace=indent,eol,start
 filetype indent plugin on
 
 " use # spaces for shifting smaller than stabstop
-set softtabstop=2
+set softtabstop=4
 
 " show line number
 set nu
@@ -108,19 +219,32 @@ set nu
 "set nuw=?
 
 " show line number relatively to cursor line
-"set rnu
+" setting both nu & rnu give hybrid mode, rnu + absolute on current line
+set relativenumber " set rnu
+
+" set/unset rnu automatically only when navigating
+" https://jeffkreeftmeijer.com/vim-number/
+"augroup numbertoggle
+"  autocmd!
+"  autocmd BufEnter,FocusGained,InsertLeave,WinEnter * if &nu && mode() != "i" | set rnu   | endif
+"  autocmd BufLeave,FocusLost,InsertEnter,WinLeave   * if &nu                  | set nornu | endif
+"augroup END
+
 
 " # of additional rows to show above/below the cursor
 set scrolloff=3 " set so=3
 
 " force this settings when opening rust and python files
-autocmd FileType rust,python setlocal expandtab shiftwidth=2 softtabstop=2
+"autocmd FileType rust,python setlocal expandtab shiftwidth=2 softtabstop=2
 
 " fold code
 set foldmethod=syntax
 
 " don't fold code when just opened
 set nofoldenable
+
+" column width to indicate folding depth, on the left to nu column
+"set foldcolumn=1 " set fdc
 
 " highlights current cursor line/column
 "set cursorline
@@ -143,6 +267,11 @@ set matchpairs+=<:>
 "set revins
 
 " write 'modeline' commands for file-specific options
+"set modeline
+
+" always show status line
+" you can get filename & pos % with <C-g>
+"set laststatus=2
 
 "set statusline
 "set tabline
