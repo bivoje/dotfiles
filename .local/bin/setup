@@ -170,6 +170,59 @@ echo "" # move down 1 line
 # package specific install methods, mid precedence
 # ====================================================
 
+install_package_localrlwrap() {
+  wget --no-check-certificate  https://github.com/hanslub42/rlwrap/releases/download/0.46.1/rlwrap-0.46.1.tar.gz
+  tar -xzf rlwrap-*.tar.gz
+  cd rlwrap-*/
+  # had to delete #if/#endif to trigger definitions of bool
+  # for some reason, shepherd has glibc.ver > 2.7 but lacks those definitions...
+  echo '24d\n27d\nwQ' | ed src/rlwrap.h
+  ./configure --prefix=$HOME/.local
+  make && make check && make install
+}
+
+install_package_localtmux() {
+  # 2022-11-15
+  # $ uname -a >> Linux shepherd8 5.4.0-131-generic #147~18.04.1-Ubuntu SMP Sat Oct 15 13:10:18 UTC 2022 x86_64 x86_64 x86_64 GNU/Linux 
+  # $ ldd --version >> ldd (Ubuntu GLIBC 2.27-3ubuntu1.5) 2.27
+  # following instruction in https://github.com/tmux/tmux/wiki/Installing
+  # but had to adjust versions & options for old stinky shepherd setting
+
+  rm -rf localtmux
+  mkdir -p localtmux
+  cd localtmux
+
+  # the lastest version
+  wget --no-check-certificate  https://github.com/libevent/libevent/releases/download/release-2.1.12-stable/libevent-2.1.12-stable.tar.gz
+  tar -zxf libevent-*.tar.gz
+  cd libevent-*/
+  ./configure --prefix=$HOME/.local --enable-shared
+  make && make install
+  cd ..
+
+  # can't compile ncurses-6.5 in shepherd, static libc is too old
+  wget --no-check-certificate  https://invisible-island.net/archives/ncurses/ncurses-6.0.tar.gz
+  tar -zxf ncurses.tar.gz
+  cd ncurses-*/
+  mkdir $HOME/.local/lib/pkgconfig
+  # https://www.linuxquestions.org/questions/linux-newbie-8/recursively-include-headers-in-include-option-for-gcc-763234/#post3726546
+  # https://stackoverflow.com/a/37475223
+  CPPFLAGS="-P" ./configure --prefix=$HOME/.local --with-shared --with-termlib --enable-pc-files --with-pkg-config-libdir=$HOME/.local/lib/pkgconfig
+  make && make install
+  cd ..
+
+  # the lastes version
+  wget --no-check-certificate  https://github.com/tmux/tmux/releases/download/3.3a/tmux-3.3a.tar.gz
+  tar -zxf tmux-*.tar.gz
+  cd tmux-*/
+  CFLAGS="-I$HOME/.local/include -I$HOME/.local/include/ncurses -L$HOME/.local/lib" PKG_CONFIG_PATH=$HOME/.local/lib/pkgconfig ./configure --prefix=$HOME/.local/
+  make && make install
+  cd ..
+
+  cd ..
+  rm -rf localtmux
+}
+
 install_package_ipython() {
   # TODO
   [ -n "$silent" ] && op="-s" || op=""
