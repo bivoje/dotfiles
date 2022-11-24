@@ -22,10 +22,9 @@ umask 022 # newly created file gets permission ~022
 
 
 # FIXME append only when not included already? like .cargo/env does?
-export PATH=$PATH:$HOME/bin # for my programs
 export PATH=$PATH:$HOME/.local/bin # for stack
 
-export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:/$HOME/lib
+export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:/$HOME/.local/lib
 
 # for rustup / cargo
 if [ -e $HOME/.cargo/env ]; then

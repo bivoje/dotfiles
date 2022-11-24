@@ -204,8 +204,8 @@ install_package_stack() {
 # FIXME tldr has runtime dependency on unzip
 install_package_tldr() {
   [ -n "$silent" ] && op="-s" || op=""
-  curl $op -o ~/bin/tldr https://raw.githubusercontent.com/raylee/tldr-sh-client/master/tldr && \
-  chmod +x ~/bin/tldr
+  curl $op -o ~/.local/bin/tldr https://raw.githubusercontent.com/raylee/tldr-sh-client/master/tldr && \
+  chmod +x ~/.local/bin/tldr
 }
 
 # depends on curl
@@ -222,7 +222,7 @@ install_package_ascii() {
   tar xzf ascii-3.18.tar.gz && \
   cd ascii-3.18 && \
   make $op && \
-  mv ascii ~/bin && \
+  mv ascii ~/.local/bin && \
   cd .. && \
   rm -rf ascii-3.18 ascii-3.18.tar.gz
 }
@@ -249,7 +249,7 @@ install_package_inotify-tools-nonroot() {
   ./configure --prefix=`pwd`/target
   make
   make install
-  mv target/bin/* $HOME/bin
+  mv target/bin/* $HOME/.local/bin
   mkdir -p $HOME/lib
   mv lib/* $HOME/lib
 }
@@ -340,9 +340,9 @@ run() {
   fi
 }
 
-# it's already in ~/bin by default
+# it's already in ~/.local/bin by default
 # so.. this does nothing in most cases
-mkdir -p ~/bin
+mkdir -p ~/.local/bin
 
 rm -f .setup_log
 
