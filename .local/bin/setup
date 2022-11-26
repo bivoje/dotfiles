@@ -9,169 +9,75 @@
 # bash directory stack
 # https://www.gnu.org/software/bash/manual/html_node/Directory-Stack-Builtins.html
 
-# ==============================================================
-# ===================== script configure =======================
-# ==============================================================
+MESSAGE() {
+  echo -e "\x1b[33m:: SETUP:" $@ "\x1b[0m"
+}
 
-# TODO automatically install vim-plug - plugins?
-# TODO implement terminal-version notify-send
-# TODO use package manager to resolve dependencies
-# TODO add version & help messages
-
-
-# pipe fail as a whole if any of subproc fails
-# useful for checking failure of `curl <URL> | sh` installs
-set -o pipefail
-
-system=unknown
-
-if [ -f "/etc/debian_version" ]; then
-  system=debian
-fi
-
-profile=$1
-silent=$2
-
-# setting for default profile
-# should be topologically ordered on dependency, the later, the more dependent
-package_candidate=(make build-essential ipython inotify-tools rustup stack '-')
-# packages installed in reverse order
-package_install=(python3-pip python3 tmux vim-plug vim tldr clf hc ascii curl upgrade)
-
-case "$profile" in
-  "minimal")
-    package_candidate=(make build-essential inotify-tools hc ascii clf vim-plug tmux python3 rustup stack '-')
-    package_install=(vim tldr curl upgrade)
-    ;;
-  "nonroot")
-    package_candidate=(make build-essential tmux python3 rustup stack '-')
-    package_install=(vim-plug tldr clf hc ascii inotify-tools-nonroot)
-    ;;
-  "") ;; # use default
-  *) echo unkown profile "$1", loading default...
-esac
-
-# ==============================================================
-# ===================== querying ===============================
-# ==============================================================
-
-# coloring done with help from https://gist.github.com/fnky/458719343aabd01cfb17a3a4f7296797
-while [ ${#package_candidate[@]} -ne 1 ]; do
-
-  if [ $package_candidate == '-' ]; then
-    # package_condiate.pop_front()
-    package_candidate=("${package_candidate[@]:1}")
-    # package_candidate.push_back('-')
-    package_candidate+=('-')
-  fi
-
-  # package = package_condiate.pop_front()
-  package="${package_candidate[0]}"
-  package_candidate=("${package_candidate[@]:1}")
-
-  cand_num=${#package_candidate[@]}
-  echo -en "\x1b[2K" # erase the entire line
-  echo -ne "packages to be installed |\x1b[32m"
-  for pack in "${package_install[@]}"; do
-    echo -n " $pack"
-  done
-  echo -e "\x1b[0m"
-
-  echo -e "\x1b[2K" # erase the entire line
-  echo -en " installation candidates |\x1b[31m $package"
-  for (( i = 0 ; i < $cand_num ; i++ )) ; do # FIXME forces bash
-    pack="${package_candidate[$i]}"
-    if [ "$pack" == "-" ]; then
-      if [ $i == $(($cand_num-1)) ]; then
-        continue
-      else
-        echo -ne "\x1b[33m !\x1b[31m"
-      fi
-    else
-      echo -n " $pack"
-    fi
-  done
-  echo -en "\x1b[0m"
-
-  echo -e "\x1b[2A" # move cursor up 2 lines
-  echo -en "\x1b[2K" # erase the entire line
-  echo -ne "  do you want to install \x1b[34m$package\x1b[0m? (Ynqader?) "
-  read -e ans
-
-  if [ "$ans" == Y ] || [ "$ans" == y ]; then
-    # package_install.push_front(package)
-    package_install=("$package" "${package_install[@]}")
-  elif [ "$ans" == N ] || [ "$ans" == n ]; then
-    # package_candidate.push_back(package)
-    package_candidate+=("$package")
-  elif [ "$ans" == Q ] || [ "$ans" == q ]; then
-    # package_candidate.extend(package_install.drain())
-    package_candidate+=("${package_install[@]}")
-    package_install=()
-    break
-  elif [ "$ans" == A ] || [ "$ans" == a ]; then
-    # package_install.push_front(package)
-    package_install=("$package" "${package_install[@]}")
-    # package_install.push_front(package_candidate.drain_until('-'))
-    for pack in "${package_candidate[@]}"; do
-      if [ "$pack" == '-' ]; then break; fi
-      package_install=("$pack" "${package_install[@]}")
-    done
-    package_candidate=("${package_candidate[@]:$i}")
-    break
-  elif [ "$ans" == D ] || [ "$ans" == d ]; then
-    break
-  elif [ "$ans" == E ] || [ "$ans" == e ]; then
-    echo -en "\x1b[1A\x1b[2K" # replace orig prompt
-    read -p "  packages to install: " -a package_additional
-    # package_install.extend_front(package_additional.drain())
-    package_install=("${package_additional[@]}" "${package_install[@]}")
-    package_additional=()
-    # package_candidate.push_front(pakcage)
-    package_candidate=("$package" "${package_candidate[@]}")
-  elif [ "$ans" == R ] || [ "$ans" == r ]; then
-    # package_candidate.push_front(package)
-    package_candidate=("$package" "${package_candidate[@]}")
-    # if package_install.len() > 0
-    if [ ${#package_install[@]} -gt 0 ]; then
-      # package_candidate.push_front(package_install.pop_front())
-      package_candidate=("${package_install[0]}" "${package_candidate[@]}")
-      package_install=("${package_install[@]:1}")
-    fi
-  else
-    # package_candidate.push_front(pakcage)
-    package_candidate=("$package" "${package_candidate[@]}")
-    echo "" # move cursor 1 line down
-    echo -en "\x1b[35m"
-    echo "y - install selected package"
-    echo "n - do not install selected package"
-    echo "q - quit; do not install anything"
-    echo "a - install this and any later packages till '!'"
-    echo "d - do not install this or any of the remaining packages"
-    echo "e - manually add package name"
-    echo "r - revert last acepttance"
-    echo "? - print help"
-    echo "\n\n"
-    echo -en "\x1b[0m"
-  fi
-
-  echo -en "\x1b[2A" # move up 2 lines
-done
-
-echo "" # move down 1 line
+DUMP() {
+  echo -e ">" $@
+}
 
 # ==============================================================
 # ================== installation configure ====================
 # ==============================================================
 
-# package-system specific install methods, highest precedence
-# ===========================================================
+# requires bash, wget, tar, ed to work properly
 
-# package specific install methods, mid precedence
-# ====================================================
+# list of packages that is globally and locally available
+g_packs=()
+l_packs=()
 
-install_package_localrlwrap() {
-  wget --no-check-certificate  https://github.com/hanslub42/rlwrap/releases/download/0.46.1/rlwrap-0.46.1.tar.gz
+# libraries
+g_packs+=(make libgcc autoconf autotools-dev libtool automake readline-dev)
+
+# default global installs
+g_packs+=(inotify-tools tmux vim rlwrap python3 curl git python3-pip)
+
+# FIXME
+package_install=(upgrade update)
+
+
+# --------------------------------------------------------------
+# ------------------- custom install scripts -------------------
+
+# https://stackoverflow.com/a/58964551 for (set -e ...) trick
+
+g_packs+=(python3-pip)
+ginstall_package_python3-pip() {
+  case "$system" in
+    debian)
+      DUMP ginstall_default_debian python3-pip
+      ginstall_default_debian python3-pip ;;
+    alpine)
+      DUMP ginstall_default_alpine py3-pip
+      ginstall_default_alpine py3-pip ;;
+    *)
+      echo "can't install pip in $system"
+      return 1
+      ;;
+  esac
+}
+
+g_packs+=(gcc)
+ginstall_package_gcc() {
+  case "$system" in
+    debian)
+      DUMP ginstall_default_debian build-essential
+      ginstall_default_debian build-essential ;;
+    alpine)
+      DUMP ginstall_default_alpine build-base
+      ginstall_default_alpine build-base ;;
+    *)
+      echo "can't install gcc in $system"
+      return 1
+      ;;
+  esac
+}
+
+l_packs+=(rlwrap)
+linstall_package_rlwrap() {(set -e
+  require_packages gcc make readline-dev
+  wget --no-check-certificate https://github.com/hanslub42/rlwrap/releases/download/0.46.1/rlwrap-0.46.1.tar.gz
   tar -xzf rlwrap-*.tar.gz
   cd rlwrap-*/
   # had to delete #if/#endif to trigger definitions of bool
@@ -179,37 +85,61 @@ install_package_localrlwrap() {
   echo '24d\n27d\nwQ' | ed src/rlwrap.h
   ./configure --prefix=$HOME/.local
   make && make check && make install
+  cd ..
+  rm -rf rlwrap-*/
+)}
+
+l_packs+=(libevent)
+linstall_package_libevent() {(set -e
+  require_packages gcc make 
+  # the lastest version
+  wget --no-check-certificate https://github.com/libevent/libevent/releases/download/release-2.1.12-stable/libevent-2.1.12-stable.tar.gz
+  tar -zxf libevent-*.tar.gz
+  cd libevent-*/
+  ./configure --prefix=$HOME/.local --enable-shared --disable-openssl
+  make
+  make install
+  cd ..
+  rm -rf libevent-*.tar.gz libevent-*/
+)}
+check_package_libevent() {
+  # FIXME can't find global installation...
+  # ldconfig does not seem to be working in alpine...
+  # https://www.baeldung.com/linux/check-shared-library-installed
+  [ -e $HOME/.local/lib/libevent.so ]
 }
 
-install_package_localtmux() {
+l_packs+=(ncurses)
+linstall_package_ncurses() {(set -e
+  require_packages gcc make
+  # can't compile ncurses-6.5 in shepherd, static libc is too old
+  wget --no-check-certificate  https://invisible-island.net/archives/ncurses/ncurses-6.0.tar.gz
+  tar -zxf ncurses*.tar.gz
+  cd ncurses-*/
+  mkdir -p $HOME/.local/lib/pkgconfig
+  # https://www.linuxquestions.org/questions/linux-newbie-8/recursively-include-headers-in-include-option-for-gcc-763234/#post3726546
+  # https://stackoverflow.com/a/37475223
+  CPPFLAGS="-P --std=c99 --std=c++98" ./configure --prefix=$HOME/.local --with-shared --with-termlib --enable-pc-files --with-pkg-config-libdir=$HOME/.local/lib/pkgconfig
+  make
+  make install
+  cd ..
+  rm -rf ncurses*.tar.gz ncurses-*/
+)}
+check_package_ncurses() {
+  # FIXME can't find global installation...
+  # ldconfig does not seem to be working in alpine...
+  # https://www.baeldung.com/linux/check-shared-library-installed
+  [ -e $HOME/.local/lib/libncurses.so ]
+}
+
+l_packs+=(tmux)
+linstall_package_tmux() {(set -e
+  require_packages libevent ncurses
   # 2022-11-15
   # $ uname -a >> Linux shepherd8 5.4.0-131-generic #147~18.04.1-Ubuntu SMP Sat Oct 15 13:10:18 UTC 2022 x86_64 x86_64 x86_64 GNU/Linux 
   # $ ldd --version >> ldd (Ubuntu GLIBC 2.27-3ubuntu1.5) 2.27
   # following instruction in https://github.com/tmux/tmux/wiki/Installing
   # but had to adjust versions & options for old stinky shepherd setting
-
-  rm -rf localtmux
-  mkdir -p localtmux
-  cd localtmux
-
-  # the lastest version
-  wget --no-check-certificate  https://github.com/libevent/libevent/releases/download/release-2.1.12-stable/libevent-2.1.12-stable.tar.gz
-  tar -zxf libevent-*.tar.gz
-  cd libevent-*/
-  ./configure --prefix=$HOME/.local --enable-shared
-  make && make install
-  cd ..
-
-  # can't compile ncurses-6.5 in shepherd, static libc is too old
-  wget --no-check-certificate  https://invisible-island.net/archives/ncurses/ncurses-6.0.tar.gz
-  tar -zxf ncurses.tar.gz
-  cd ncurses-*/
-  mkdir $HOME/.local/lib/pkgconfig
-  # https://www.linuxquestions.org/questions/linux-newbie-8/recursively-include-headers-in-include-option-for-gcc-763234/#post3726546
-  # https://stackoverflow.com/a/37475223
-  CPPFLAGS="-P" ./configure --prefix=$HOME/.local --with-shared --with-termlib --enable-pc-files --with-pkg-config-libdir=$HOME/.local/lib/pkgconfig
-  make && make install
-  cd ..
 
   # the lastes version
   wget --no-check-certificate  https://github.com/tmux/tmux/releases/download/3.3a/tmux-3.3a.tar.gz
@@ -218,84 +148,89 @@ install_package_localtmux() {
   CFLAGS="-I$HOME/.local/include -I$HOME/.local/include/ncurses -L$HOME/.local/lib" PKG_CONFIG_PATH=$HOME/.local/lib/pkgconfig ./configure --prefix=$HOME/.local/
   make && make install
   cd ..
+  rm -rf tmux-*.tar.gz tmux-*/
+)}
 
-  cd ..
-  rm -rf localtmux
-}
-
-install_package_ipython() {
-  # TODO
-  [ -n "$silent" ] && op="-s" || op=""
-  pip install ipython
-}
-
-# depends on curl
-install_package_vim-plug() {
-  [ -n "$silent" ] && op="-s" || op=""
-  curl $op -fLo ~/.vim/autoload/plug.vim --create-dirs \
+l_packs+=(vim-plug)
+linstall_package_vim-plug() {(set -e
+  [ -n "$silent" ] && op="-q" || op=""
+  mkdir -p $HOME/.vim/autoload/
+  wget $op -O $HOME/.vim/autoload/plug.vim \
       https://raw.githubusercontent.com/junegunn/vim-plug/master/plug.vim
+)}
+check_package_vim-plug() {
+  [ -e $HOME/.vim/autoload/plug.vim ]
 }
 
-# depends on curl
-install_package_rustup() {
-  [ -n "$silent" ] && op="-s" || op=""
-  curl $op --proto '=https' --tlsv1.2 -Sf https://sh.rustup.rs | sh -s -- -y -q
-}
-
-# depends on wget
-install_package_stack() {
+# FIXME installed locally even when sudo-mode?
+l_packs+=(rustup)
+linstall_package_rustup() {(set -e
+  require_packages gcc libgcc
   [ -n "$silent" ] && op="-q" || op=""
-  wget $op -Ol https://get.haskellstack.org/ | sh -s -- $op -f # quietly overwrite binary
-  if [ $? -ne 0 ]; then
-    [ -n "$silent" ] && op2="-s" || op2=""
-    echo stack install using wget failed. trying using curl...
-    curl $op2 -SL https://get.haskellstack.org/ | sh -s -- $op -f # quietly overwrite binary
-  fi
+  wget $op -O- https://sh.rustup.rs | sh -s -- -y -q
+)
+  source $HOME/.cargo/env
 }
 
-# depends on curl
-# FIXME tldr has runtime dependency on unzip
-install_package_tldr() {
-  [ -n "$silent" ] && op="-s" || op=""
-  curl $op -o ~/.local/bin/tldr https://raw.githubusercontent.com/raylee/tldr-sh-client/master/tldr && \
-  chmod +x ~/.local/bin/tldr
-}
-
-# depends on curl
-install_package_clf() {
+# FIXME... uses sudo command internally
+l_packs+=(stack)
+linstall_package_stack() {
   [ -n "$silent" ] && op="-q" || op=""
-  pip install $op --user clf
-  # TODO option to install globally?
+  wget $op -O- https://get.haskellstack.org/ | sh -s -- $op -f # quietly overwrite binary
 }
 
-# depends on tar, make, curl
-install_package_ascii() {
-  [ -n "$silent" ] && op="-s" || op=""
-  curl $op -O http://www.catb.org/~esr/ascii/ascii-3.18.tar.gz && \
-  tar xzf ascii-3.18.tar.gz && \
-  cd ascii-3.18 && \
-  make $op && \
-  mv ascii ~/.local/bin && \
-  cd .. && \
+l_packs+=(tldr)
+linstall_package_tldr() {(set -e
+  [ -n "$silent" ] && op="-q" || op=""
+  wget $op -O $HOME/.local/bin/tldr https://raw.githubusercontent.com/raylee/tldr-sh-client/master/tldr
+  chmod +x $HOME/.local/bin/tldr
+)}
+
+l_packs+=(clf)
+linstall_package_clf() {(set -e
+  require_packages python3-pip
+  [ -n "$silent" ] && op="-q" || op=""
+  su $user -c "pip install $op --user clf"
+)}
+
+l_packs+=(ascii)
+linstall_package_ascii() {(set -e
+  require_packages make
+  [ -n "$silent" ] && op="-q" || op=""
+  wget $op http://www.catb.org/~esr/ascii/ascii-3.18.tar.gz
+  tar xzf ascii-3.18.tar.gz
+  cd ascii-3.18
+  make $op
+  mv ascii $HOME/.local/bin
+  cd ..
   rm -rf ascii-3.18 ascii-3.18.tar.gz
-}
+)}
 
-# depends on curl or rustup
-install_package_hc() {
-  if [ "`uname -ms`" != 'Linux x86_64' ]; then
-    [ -n "$silent" ] && op="-s" || op=""
-    curl $op -o \
-      ~/hc https://github.com/bivoje/hex-calculator/releases/download/rel-1.0.0/hc-linux_x86_64-1.0.0 && \
-    chmod +x ~/hc
+l_packs+=(hc)
+linstall_package_hc() {(set -e
+  if false && [ "`uname -ms`" == 'Linux x86_64' ]; then
+    # FIXME; required ldd's...
+    # libpthread.so.0 => /lib64/ld-linux-x86-64.so.2 (0x7f5e39b08000)
+    # libm.so.6 => /lib64/ld-linux-x86-64.so.2 (0x7f5e39b08000)
+    # libdl.so.2 => /lib64/ld-linux-x86-64.so.2 (0x7f5e39b08000)
+    # libc.so.6 => /lib64/ld-linux-x86-64.so.2 (0x7f5e39b08000)
+    DUMP linstall_package_hc_download
+    [ -n "$silent" ] && op="-q" || op=""
+    wget $op -O $HOME/.local/bin/hc https://github.com/bivoje/hex-calculator/releases/download/rel-1.0.0/hc-linux_x86_64-1.0.0
+    chmod +x $HOME/.local/bin/hc
   else
+    DUMP linstall_package_hc_build
+    require_packages rustup git
+    #source $HOME/.cargo/env ???
     [ -n "$silent" ] && op="-q" || op=""
     cargo install $op --git https://github.com/bivoje/hex-calculator.git
   fi
-}
+)}
 
-# depends on build-essentials & autotools-dev, automake
-install_package_inotify-tools-nonroot() {
-  git clone https://github.com/inotify-tools/inotify-tools.git
+l_packs+=(inotify-tools)
+linstall_package_inotify-tools() {(set -e
+  require_packages git make gcc automake autoconf libtool #autotools-dev
+  git clone -b 3.22.1.0 https://github.com/inotify-tools/inotify-tools.git
   cd inotify-tools
   mkdir target
   ./autogen.sh
@@ -303,86 +238,158 @@ install_package_inotify-tools-nonroot() {
   make
   make install
   mv target/bin/* $HOME/.local/bin
-  mkdir -p $HOME/lib
-  mv lib/* $HOME/lib
+  mv lib/* $HOME/.local/lib
+  cd ..
+  rm -rf inotify-tools
+)}
+check_package_inotify-tools() {
+  which inotifywait
 }
 
-# system specific install methods, lowest precedence
-# ==================================================
+# --------------------------------------------------------------
+# --------------------- debian specific ------------------------
 
-install_debian_upgrade() {
-  [ -n "$silent" ] && op="-qq" || op=""
-  apt-get upgrade -y $op
-}
-
-install_system() {
-  if [ -z "$1" ]; then
-    # initialize if called without an argument
-    echo -e "\x1b[33m:: SETUP: Initializing...\x1b[0m"
-    case "$system" in
-      debian)
-        [ -n "$silent" ] && op="-qq" || op=""
-        apt-get $op update
-        ;;
-      *) # does nothing by default
-    esac
-    echo -e "\x1b[33m:: SETUP: Done! \x1b[0m"
+ginstall_default_debian() {
+  if [ -z "$1" ]; then # initialize if called without an argument
+    [ -n "$silent" ] && op="-qq" || op=""
+    apt-get $op update
+    apt-get upgrade -y $op
     return
   fi
 
-  case "$system" in
-    debian)
-      [ -n "$silent" ] && op="-qq" || op=""
-      apt-get $op install -y $1
-      ;;
-    alpine)
-      apk add $1
-      ;;
-    *) "no default install method specified for system $system"; false
-  esac
+  [ -n "$silent" ] && op="-qq" || op=""
+  apt-get $op install -y $1
 }
 
+check_default_debian() {
+  dpkg -s $1
+}
+
+# --------------------------------------------------------------
+# --------------------- alpine specific ------------------------
+
+ginstall_default_alpine() {
+  if [ -z "$1" ]; then # initialize if called without an argument
+    apk update
+    apk upgrade
+    return
+  fi
+
+  apk add $1
+}
+
+check_default_alpine() {
+  apk info -e $1 > /dev/null
+}
+
+
 # ==============================================================
-# ===================== effective code =========================
+# ===================== utility routines =======================
 # ==============================================================
 
-install() {
-  # https://stackoverflow.com/a/9529981
-  if declare -F install_${system}_$1 > /dev/null; then
-    install_${system}_$1
-  elif declare -F install_package_$1 > /dev/null; then
-    install_package_$1
+# --------------------------------------------------------------
+# --------------------- package related ------------------------
+
+check_package() {
+  pack=$1
+  if declare -F check_package_$pack > /dev/null; then
+    check_package_$pack
   else
-    install_system "$1"
+    which $pack > /dev/null || check_default_$system $pack
+  fi
+}
+
+# be careful to avoid making infinite recursion with dependency cycle
+require_packages() {
+  for pack in $@; do
+    if ! check_package $pack; then
+      install_package $pack
+      # https://www.baeldung.com/linux/bash-script-raise-error
+      # (set -e ...) trick does not work with loop
+      if [ $? -ne 0 ]; then return 1; fi
+    fi
+  done
+}
+
+# FIXME set -e
+install_package() {
+  DUMP install_package $@
+  # https://stackoverflow.com/a/9529981 (declare -F)
+  # https://stackoverflow.com/a/15394738 (find in array)
+  pack=$1
+
+  if check_package $pack; then
+    DUMP "package $pack is already installed"
+    return 0
+  fi
+
+  if [ -n "$issudo" ] && [[ " ${g_packs[*]} " =~ " $pack " ]]; then
+    # this package can be globally installed
+    if declare -F ginstall_package_$pack > /dev/null; then
+      DUMP ginstall_package_$pack
+      ginstall_package_$pack # custom install script
+    else
+      DUMP ginstall_default_$system $pack
+      ginstall_default_$system $pack # system default install
+    fi
+
+  elif declare -F linstall_package_$pack > /dev/null; then
+    # this package can only be installed locally
+    DUMP linstall_package_$pack
+    linstall_package_$pack
+
+  else
+    >&2 echo "unrecognized package '$pack'"
+    return 1
   fi
 }
 
 run() {
+  package_install=($@)
   package_failed=()
   package_success=()
 
   if [ ${#package_install[@]} -eq 0 ]; then
-    echo nothing to install
-    exit
+    MESSAGE "nothing to install"
+    return 0
   fi
 
-  install_system # initialize package manager
+  if [ -n "$issudo" ]; then
+    MESSAGE "Initializing..."
+    ginstall_default_$system # initialize package manager
+    MESSAGE "Done!"
+  fi
 
   # FIXME forces bash
   for (( i = ${#package_install[@]}-1 ; 0 <= i ; i-- )) ; do
     pack="${package_install[$i]}"
-    echo -e "\x1b[33m:: SETUP: try installing $pack \x1b[0m"
-    install "$pack"
-    if [ $? -eq 0 ]; then
+
+    if check_package $pack; then
       package_success+=("$pack")
-      echo -e "\x1b[33m:: SETUP: $pack installed \x1b[0m"
+      MESSAGE "package $pack is already installed"
+      continue
+    fi
+
+    MESSAGE "try installing $pack"
+    install_package "$pack"
+
+    if [ $? -eq 0 ]; then
+      if check_package $pack; then
+        package_success+=("$pack")
+        MESSAGE "successfully installed $pack"
+      else
+        package_failed+=("$pack")
+        MESSAGE "done installing $pack but can't verify"
+      fi
     else
       package_failed+=("$pack")
-      echo -e "\x1b[33m:: SETUP: $pack failed install \x1b[0m"
+      MESSAGE "failed installing $pack"
     fi
   done
 
-  echo -e "successfully installed packages:\x1b[32m ${package_success[@]}\x1b[0m"
+  if [ ${#package_success[@]} -ne 0 ]; then
+    echo -e "successfully installed packages:\x1b[32m ${package_success[@]}\x1b[0m"
+  fi
   if [ ${#package_failed[@]} -ne 0 ]; then
     if [ ${#package_failed[@]} -eq 1 ]; then
       echo -e "failed to install package:\x1b[31m ${package_failed[@]}\x1b[0m"
@@ -390,13 +397,204 @@ run() {
       echo -e "failed to install packages:\x1b[31m ${package_failed[@]}\x1b[0m"
     fi
     echo see .setup_log for details
+    return 1
+  else
+    return 0
   fi
 }
 
-# it's already in ~/.local/bin by default
+
+# --------------------------------------------------------------
+# ------------------------ UI related --------------------------
+
+# edit two global arrays package_candidates, package_install
+interactively_edit_package_selection() {
+  # coloring done with help from https://gist.github.com/fnky/458719343aabd01cfb17a3a4f7296797
+  while [ ${#package_candidate[@]} -ne 1 ]; do
+
+    if [ $package_candidate == '-' ]; then
+      # package_condiate.pop_front()
+      package_candidate=("${package_candidate[@]:1}")
+      # package_candidate.push_back('-')
+      package_candidate+=('-')
+    fi
+
+    # package = package_condiate.pop_front()
+    package="${package_candidate[0]}"
+    package_candidate=("${package_candidate[@]:1}")
+
+    cand_num=${#package_candidate[@]}
+    echo -en "\x1b[2K" # erase the entire line
+    echo -ne "packages to be installed |\x1b[32m"
+    for pack in "${package_install[@]}"; do
+      echo -n " $pack"
+    done
+    echo -e "\x1b[0m"
+
+    echo -e "\x1b[2K" # erase the entire line
+    echo -en " installation candidates |\x1b[31m $package"
+    for (( i = 0 ; i < $cand_num ; i++ )) ; do # FIXME forces bash
+      pack="${package_candidate[$i]}"
+      if [ "$pack" == "-" ]; then
+        if [ $i == $(($cand_num-1)) ]; then
+          continue
+        else
+          echo -ne "\x1b[33m !\x1b[31m"
+        fi
+      else
+        echo -n " $pack"
+      fi
+    done
+    echo -en "\x1b[0m"
+
+    echo -e "\x1b[2A" # move cursor up 2 lines
+    echo -en "\x1b[2K" # erase the entire line
+    echo -ne "  do you want to install \x1b[34m$package\x1b[0m? (Ynqader?) "
+    read -e ans
+    ans=${ans// } # remove spaces
+
+    if [ "$ans" == Y ] || [ "$ans" == y ] || [ -z "$ans" ]; then
+      # package_install.push_front(package)
+      package_install=("$package" "${package_install[@]}")
+
+    elif [ "$ans" == N ] || [ "$ans" == n ]; then
+      # package_candidate.push_back(package)
+      package_candidate+=("$package")
+
+    elif [ "$ans" == Q ] || [ "$ans" == q ]; then
+      # package_candidate.extend(package_install.drain())
+      package_candidate+=("${package_install[@]}")
+      package_install=()
+      break
+
+    elif [ "$ans" == A ] || [ "$ans" == a ]; then
+      # package_install.push_front(package)
+      package_install=("$package" "${package_install[@]}")
+      # package_install.push_front(package_candidate.drain_until('-'))
+      for pack in "${package_candidate[@]}"; do
+        if [ "$pack" == '-' ]; then break; fi
+        package_install=("$pack" "${package_install[@]}")
+      done
+      package_candidate=("${package_candidate[@]:$i}")
+      break
+
+    elif [ "$ans" == D ] || [ "$ans" == d ]; then
+      break
+
+    elif [ "$ans" == E ] || [ "$ans" == e ]; then
+      echo -en "\x1b[1A\x1b[2K" # replace orig prompt
+      read -p "  packages to install: " -a package_additional
+      # package_install.extend_front(package_additional.drain())
+      package_install=("${package_additional[@]}" "${package_install[@]}")
+      package_additional=()
+      # package_candidate.push_front(pakcage)
+      package_candidate=("$package" "${package_candidate[@]}")
+
+    elif [ "$ans" == R ] || [ "$ans" == r ]; then
+      # package_candidate.push_front(package)
+      package_candidate=("$package" "${package_candidate[@]}")
+      # if package_install.len() > 0
+      if [ ${#package_install[@]} -gt 0 ]; then
+        # package_candidate.push_front(package_install.pop_front())
+        package_candidate=("${package_install[0]}" "${package_candidate[@]}")
+        package_install=("${package_install[@]:1}")
+      fi
+
+    else
+      # package_candidate.push_front(pakcage)
+      package_candidate=("$package" "${package_candidate[@]}")
+      echo "" # move cursor 1 line down
+      echo -en "\x1b[35m"
+      echo "y - install selected package"
+      echo "n - do not install selected package"
+      echo "q - quit; do not install anything"
+      echo "a - install this and any later packages till '!'"
+      echo "d - do not install this or any of the remaining packages"
+      echo "e - manually add package name"
+      echo "r - revert last acepttance"
+      echo "? - print help"
+      echo "\n\n"
+      echo -en "\x1b[0m"
+    fi
+
+    echo -en "\x1b[2A" # move up 2 lines
+  done
+
+  echo "" # move down 1 line
+}
+
+
+# --------------------------------------------------------------
+# --------------------- miscellaneous --------------------------
+
+find_system() {
+  if [ -f "/etc/debian_version" ]; then
+    echo debian
+  elif [[ "`grep "^NAME=" /etc/os-release`" =~ "Alpine" ]]; then
+    # https://www.cyberciti.biz/faq/how-to-check-os-version-in-linux-command-line/
+    echo alpine
+  else
+    echo unknown
+  fi
+}
+
+initialize_install_candidate() {
+  default_install=(vim tmux git vim-plug tldr hc ascii)
+  default_install=(`echo ${default_install[@]} |tr ' ' '\n'|sort|uniq`)
+
+  # https://askubuntu.com/a/15856
+  if [ -n "$issudo" ]; then
+    # with root privilege
+    packages=(`echo ${l_packs[@]} ${g_packs[@]} |tr ' ' '\n'|sort|uniq`)
+  else
+    # no root privilege
+    packages=(`echo ${l_packs[@]} |tr ' ' '\n'|sort|uniq`)
+  fi
+
+  package_candidate=(`comm -23 <(echo ${packages[@]}|tr ' ' '\n') <(echo ${default_install[@]}|tr ' ' '\n')`)
+  package_install=(`comm -12 <(echo ${packages[@]}|tr ' ' '\n') <(echo ${default_install[@]}|tr ' ' '\n')`)
+
+  package_candidate+=("-")
+}
+
+# ==============================================================
+# ========================= main ===============================
+# ==============================================================
+
+# TODO automatically install vim-plug - plugins?
+# TODO implement terminal-version notify-send
+# TODO add version & help messages
+
+# pipe fail as a whole if any of subproc fails
+# useful for checking failure of `wget -O- <URL> | sh` installs
+set -o pipefail
+
+silent=$2 #FIXME
+system=`find_system`
+issudo=`[ "$EUID" -eq 0 ] && echo true`
+user=${SUDO_USER:-${USER}} # https://askubuntu.com/a/1034050
+
+
+if [ -z "$1" ]; then
+  initialize_install_candidate
+  interactively_edit_package_selection
+else
+  package_install=($@)
+fi
+
+
+# it's already in $HOME/.local/bin by default
 # so.. this does nothing in most cases
-mkdir -p ~/.local/bin
+mkdir -p $HOME/.local/bin
+mkdir -p $HOME/.local/lib
+rm -f $HOME/.setup_log
 
-rm -f .setup_log
+rm -rf $HOME/.setup_temp
+mkdir -p $HOME/.setup_temp
+cd $HOME/.setup_temp
 
-run 2>&1 | tee -a .setup_log
+run ${package_install[@]} 2>&1 | tee -a $HOME/.setup_log
+
+if [ "$?" -eq "0" ]; then
+  rmdir $HOME/.setup_temp
+fi

@@ -55,13 +55,15 @@ export GPUTOP_RSA_ID=~/.ssh/shepherd_id_rsa
 # alternatively we can set 'alias clf "clf --color"' in bashrc
 export CLF_COLOR=1
 
-# auto tmux
-# https://unix.stackexchange.com/a/113768
-if command -v tmux &> /dev/null && [ -n "$PS1" ] && [ -z "$TMUX" ]; then
-  case "$TERM" in
-    *screen*) ;;
-    *tmux*) ;;
-    #*) exec tmux
-    *) tmux list-sessions && tmux -2 attach || tmux -2
-  esac
+if which tmux; then
+    # auto tmux
+    # https://unix.stackexchange.com/a/113768
+    if command -v tmux &> /dev/null && [ -n "$PS1" ] && [ -z "$TMUX" ]; then
+      case "$TERM" in
+        *screen*) ;;
+        *tmux*) ;;
+        #*) exec tmux
+        *) tmux list-sessions && tmux -2 attach || tmux -2
+      esac
+    fi
 fi

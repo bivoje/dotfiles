@@ -335,8 +335,10 @@ if &diff
 endif
 
 "vim-plug section
-call plug#begin('~/.vim/plugged')
-  Plug 'ziglang/zig.vim'
-call plug#end()
+if ! empty(globpath(&rtp, 'autoload/plug.vim'))
+  call plug#begin('~/.vim/plugged')
+    Plug 'ziglang/zig.vim'
+  call plug#end()
 
-let g:zig_fmt_autosave = 0
+  let g:zig_fmt_autosave = 0
+endif
