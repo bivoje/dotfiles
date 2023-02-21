@@ -16,21 +16,29 @@
       
 
 default_compile() {
-  case $1 in
+  case "$1" in
     rust)
       echo 'rustc --color=always --edition=2021 $1 -o ps' ;;
-    *) echo '' ;;
   esac
 }
 
 default_execute() {
-  case $1 in
+  case "$1" in
     rust)
       echo '"export RUST_BACKTRACE=1; ./ps < $2"' ;;
-    brainfuck)
-      echo 'cat $2 | ./golfscript.rb $1' ;;
-    *) echo '' ;;
+    golfscript)
+      echo '"cat $2 | golfscript $1"' ;;
+    python3)
+      echo '"cat $2 | python3 $1"' ;;
   esac
+}
+
+lang_from_src() {
+    case "${1##*.}" in
+        rs) echo 'rust' ;;
+        gs) echo 'golfscript' ;;
+        py) echo 'python3' ;;
+    esac
 }
 
 # substitute $var 's with current global & parameter bindings
@@ -47,6 +55,7 @@ COMPILE=''
 EXECUTE=''
 FILES=()
 DRY='false'
+AUTO='false'
 
 while [[ $# -gt 0 ]]; do
   case $1 in
@@ -62,6 +71,9 @@ while [[ $# -gt 0 ]]; do
     -n|--dry)
       DRY='true'
       shift ;;
+    -a|--auto)
+      AUTO='true'
+      shift ;;
     -*|--*)
       unknown
       shift; shift ;;
@@ -70,6 +82,12 @@ while [[ $# -gt 0 ]]; do
       shift ;;
   esac
 done
+
+if [ "$AUTO" == 'true' ]; then
+    if [ -z "$LANG" ]; then
+        LANG="`lang_from_src ${FILES[0]}`"
+    fi
+fi
 
 if [ -n "$LANG" ]; then
   if [ -z "$COMPILE" ]; then
