@@ -89,13 +89,14 @@ vnoremap @{ <esc>`>a}<esc>`<i{<esc>
 vnoremap @" <esc>`>a"<esc>`<i"<esc>
 vnoremap @' <esc>`>a'<esc>`<i'<esc>
 vnoremap @` <esc>`>a`<esc>`<i`<esc>
+vnoremap @<space> <esc>`>a<space><esc>`<i<space><esc>
 
 " auto complete parenthesis or quote
 " remove '@' prefix to get annoying, VScode style auto completion
 " it became rather hard to write '@' and \"@" in this way though..
 inoremap @( ()<esc>i
 inoremap @[ []<esc>i
-inoremap @{ {<cr><cr>}<esc>ki<tab>
+inoremap @{ {<cr>}<esc>ko
 inoremap @" ""<esc>i
 inoremap @' ''<esc>i
 inoremap @` ``<esc>i
