@@ -23,6 +23,13 @@ shopt -s histappend
 HISTSIZE=1000
 HISTFILESIZE=2000
 
+# show timestamps using `history`
+HISTTIMEFORMAT='%F %T '
+
+# NOTE
+# use `history -c` to clear history
+# use `HISTSIZE=0` to disable logging at all
+
 # check the window size after each command and, if necessary,
 # update the values of LINES and COLUMNS.
 shopt -s checkwinsize
