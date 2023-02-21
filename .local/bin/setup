@@ -193,6 +193,17 @@ linstall_package_clf() {(set -e
   su $user -c "pip install $op --user clf"
 )}
 
+l_packs+=(pipes)
+linstall_package_pipes() {(set -e
+  # TODO requirements:
+  # - Bash 4+ since version 1.0.0.
+  # - ncurses for tput
+  #     >= 6.1 (2018-01-27) for 24-bit colors and TERM=*-direct.
+  [ -n "$silent" ] && op="-q" || op=""
+  wget $op -O $HOME/.local/bin/pipes https://raw.githubusercontent.com/pipeseroni/pipes.sh/master/pipes.sh
+  chmod +x $HOME/.local/bin/pipes
+)}
+
 l_packs+=(ascii)
 linstall_package_ascii() {(set -e
   require_packages make
@@ -564,6 +575,8 @@ initialize_install_candidate() {
 # TODO automatically install vim-plug - plugins?
 # TODO implement terminal-version notify-send
 # TODO add version & help messages
+
+# TODO install golfscript
 
 # pipe fail as a whole if any of subproc fails
 # useful for checking failure of `wget -O- <URL> | sh` installs
