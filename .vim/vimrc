@@ -1,7 +1,15 @@
 " use ':so %' to source current file
 
+" use :e! to reload current file
+
+" use C-V C-[alphabet] to insert an ascii character with value that is ord of
+" the alphabet (while in insert mode)
+" (e.g. a=1, b=2, c=3 ...; C-V C-K == \x0b == \t)
+
 " TODO
 " use CTRL-U, CTRL_W while insert mode!
+
+" use :ter[minal] to open terminal as pane
 
 " applied when opening file
 set fileencodings=utf8,euc-kr
@@ -22,7 +30,7 @@ fun! CleanTrailingSpaces()
 endfun
 if has("autocmd")
     "   guard by extension
-    autocmd BufWritePre *.c,*.cpp,*.zig,*py,*rs,*sh,*.hs,*.js :call CleanTrailingSpaces()
+    autocmd BufWritePre *.c,*.cpp,*.zig,*.py,*.rs,*.lalrpop,*.sh,*.hs,*.js :call CleanTrailingSpaces()
     "   guard by filetype (whenever vim sets filetype)
     "autocmd FileType c,cpp autocmd BufWritePre <buffer> %s/\s\+$//e
     " Note that filetypes that are detected automatically can be found in /usr/share/vim/vim*/filetype.vim
@@ -123,6 +131,8 @@ inoremap JK <esc>
 inoremap <esc> <NOP>
 cnoremap jk <esc>
 cnoremap JK <esc>
+vnoremap jk <esc>
+vnoremap JK <esc>
 
 " stop using arrow keys!
 nnoremap <Up> <NOP>
@@ -238,6 +248,8 @@ set scrolloff=3 " set so=3
 " force this settings when opening rust and python files
 "autocmd FileType rust,python setlocal expandtab shiftwidth=2 softtabstop=2
 
+autocmd BufRead,BufNewFile *.lalrpop set syntax=rust
+
 " fold code
 set foldmethod=syntax
 
@@ -268,7 +280,9 @@ set matchpairs+=<:>
 "set revins
 
 " write 'modeline' commands for file-specific options
-"set modeline
+set modeline
+" how many lines to seek for modelines? (from the top and the bottom)
+set modelines=5
 
 " always show status line
 " you can get filename & pos % with <C-g>
