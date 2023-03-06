@@ -75,7 +75,7 @@ while [[ $# -gt 0 ]]; do
       AUTO='true'
       shift ;;
     -*|--*)
-      unknown
+      echo "unknown option; '$1' ignoring... "
       shift; shift ;;
     *)
       FILES+=($1)
@@ -116,8 +116,14 @@ if [ "$DRY" == 'true' ]; then
   exit
 fi
 
+# do-while
+(set -o pipefail && $ECOMPILE 2>&1 | head -40) \
+  && timeout -s KILL 5 bash -c "$EEXECUTE" < input
 while inotifywait -e modify -e move -r .; do
   clear;
   (set -o pipefail && $ECOMPILE 2>&1 | head -40) \
-    && timeout --signal KILL 5 bash -c "$EEXECUTE" < input
+    && timeout -s KILL 5 bash -c "$EEXECUTE" < input
+  # 'timeout' in some systems does not support long option (--signal)
 done
+
+#FIXME why 'input' is hardcoded?
