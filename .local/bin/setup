@@ -30,8 +30,10 @@ l_packs=()
 # libraries
 g_packs+=(make libgcc autoconf autotools-dev libtool automake readline-dev)
 
-# default global installs
+# utilities
 g_packs+=(inotify-tools tmux vim rlwrap python3 curl git python3-pip)
+g_packs+=(bat)
+# TODO: consider adding bat-extras lesspipe vimpager fd ripgrep fzf
 
 # FIXME
 package_install=(upgrade update)
@@ -184,6 +186,14 @@ linstall_package_tldr() {(set -e
   [ -n "$silent" ] && op="-q" || op=""
   wget $op -O $HOME/.local/bin/tldr https://raw.githubusercontent.com/raylee/tldr-sh-client/master/tldr
   chmod +x $HOME/.local/bin/tldr
+)}
+
+l_packs+=(lazygit)
+linstall_package_lazygit() {(set -e
+    LAZYGIT_VERSION=$(wget -q -O- "https://api.github.com/repos/jesseduffield/lazygit/releases/latest" | sed -n 's/.*"tag_name": "v\([^"]+\)".*/\1/p')
+    wget -O lazygit.tar.gz "https://github.com/jesseduffield/lazygit/releases/latest/download/lazygit_${LAZYGIT_VERSION}_Linux_x86_64.tar.gz"
+    tar --remove-files -- -xf lazygit.tar.gz lazygit
+    mv lazygit $HOME/.local/bin
 )}
 
 l_packs+=(clf)
