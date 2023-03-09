@@ -35,6 +35,9 @@ g_packs+=(inotify-tools tmux vim rlwrap python3 curl git python3-pip)
 g_packs+=(bat)
 # TODO: consider adding bat-extras lesspipe vimpager fd ripgrep fzf
 
+# TODO exclude packages that are already installed?
+# TODO give option to force re-install?
+
 # FIXME
 package_install=(upgrade update)
 
@@ -75,6 +78,29 @@ ginstall_package_gcc() {
       ;;
   esac
 }
+
+# installs git locally.
+# useful when global git is too old but you are not root.
+# requires git command available for cloning the source code.
+# installation verification only check for local git, ignoring global installation
+# while veri.n of other packages generally accepts global inst.n.
+# FIXME works only if all the build dependencies are already met
+# https://git-scm.com/book/en/v2/Getting-Started-Installing-Git
+l_packs+=(git_local)
+linstall_package_git_local() {(set -e
+    git clone git://git.kernel.org/pub/scm/git/git.git
+    cd git
+    make configure
+    ./configure --prefix=$HOME/.local
+    make all # doc info
+    make install # install-doc install-html install-info
+    cd ..
+    rm -rf git
+)}
+check_package_git_local() {
+  [ -e $HOME/.local/bin/git ]
+}
+
 
 l_packs+=(rlwrap)
 linstall_package_rlwrap() {(set -e
