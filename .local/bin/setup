@@ -222,6 +222,27 @@ linstall_package_lazygit() {(set -e
     mv lazygit $HOME/.local/bin
 )}
 
+l_packs+=(dash)
+linstall_package_lazygit() {(set -e
+    DASH_VERSION="dash-static-0.5.11.5_musl-1.2.3" # TODO dynamically fetch?
+    wget -O dash.tar.gz "https://github.com/amuramatsu/dash-static/releases/download/${DASH_VERSION}/${DASH_VERSION}.tar.gz"
+    tar -xf dash.tar.gz
+    rm dash.tar.gz
+
+    cd dash
+    case `uname -m` in
+        "x86-64") mv dash-amd64 $HOME/.local/bin ;;
+        *)  echo "installing dash for `uname -m` is not implemented yet"
+            return 1 ;;
+    esac
+    mkdir -p $HOME/.local/share/man/man1
+    mv dash.1 $HOME/.local/share/man/man1/
+
+    cd ..
+    rm -rf dash
+)}
+
+
 l_packs+=(clf)
 linstall_package_clf() {(set -e
   require_packages python3-pip

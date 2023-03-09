@@ -58,7 +58,7 @@ mesg n 2> /dev/null || true
 
 # auto tmux
 # https://unix.stackexchange.com/a/113768
-if command -v tmux &> /dev/null && [ -n "$PS1" ] && [ -z "$TMUX" ]; then
+if which tmux 2>&1 > /dev/null && [ -n "$PS1" ] && [ -z "$TMUX" ]; then
   case "$TERM" in
     *screen*) ;;
     *tmux*) ;;
