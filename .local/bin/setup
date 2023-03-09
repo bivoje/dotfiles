@@ -311,6 +311,25 @@ check_default_debian() {
 }
 
 # --------------------------------------------------------------
+# --------------------- redhat specific ------------------------
+
+ginstall_default_redhat() {
+  if [ -z "$1" ]; then # initialize if called without an argument
+    [ -n "$silent" ] && op="-q -e 0" || op=""
+    yum upgrade -y
+    return
+  fi
+
+  [ -n "$silent" ] && op="-q -e 0" || op=""
+  yum install $op -y $1
+}
+
+check_default_redhat() {
+  rpm -q $1 &>/dev/null
+  #TODO use -qa | grep?
+}
+
+# --------------------------------------------------------------
 # --------------------- alpine specific ------------------------
 
 ginstall_default_alpine() {
@@ -576,6 +595,8 @@ interactively_edit_package_selection() {
 find_system() {
   if [ -f "/etc/debian_version" ]; then
     echo debian
+  elif [ -f "/etc/redhat-release" ]; then
+    echo redhat
   elif [[ "`grep "^NAME=" /etc/os-release`" =~ "Alpine" ]]; then
     # https://www.cyberciti.biz/faq/how-to-check-os-version-in-linux-command-line/
     echo alpine
@@ -618,7 +639,7 @@ initialize_install_candidate() {
 set -o pipefail
 
 silent=$2 #FIXME
-system=`find_system`
+system=${system:-`find_system`} # adopt if user explicitly set
 issudo=`[ "$EUID" -eq 0 ] && echo true`
 user=${SUDO_USER:-${USER}} # https://askubuntu.com/a/1034050
 
