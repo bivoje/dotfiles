@@ -114,7 +114,7 @@ check_package_libevent() {
 l_packs+=(ncurses)
 linstall_package_ncurses() {(set -e
   require_packages gcc make
-  # can't compile ncurses-6.5 in shepherd, static libc is too old
+  # can''t compile ncurses-6.5 in shepherd, static libc is too old
   wget --no-check-certificate  https://invisible-island.net/archives/ncurses/ncurses-6.0.tar.gz
   tar -zxf ncurses*.tar.gz
   cd ncurses-*/
@@ -230,7 +230,7 @@ linstall_package_ascii() {(set -e
 l_packs+=(hc)
 linstall_package_hc() {(set -e
   if false && [ "`uname -ms`" == 'Linux x86_64' ]; then
-    # FIXME; required ldd's...
+    # FIXME; required ldd''s...
     # libpthread.so.0 => /lib64/ld-linux-x86-64.so.2 (0x7f5e39b08000)
     # libm.so.6 => /lib64/ld-linux-x86-64.so.2 (0x7f5e39b08000)
     # libdl.so.2 => /lib64/ld-linux-x86-64.so.2 (0x7f5e39b08000)
@@ -251,20 +251,18 @@ linstall_package_hc() {(set -e
 l_packs+=(inotify-tools)
 linstall_package_inotify-tools() {(set -e
   require_packages git make gcc automake autoconf libtool #autotools-dev
-  git clone -b 3.22.1.0 https://github.com/inotify-tools/inotify-tools.git
+  git clone -b 3.22.1.0 https://github.com/inotify-tools/inotify-tools.git --depth=1
   cd inotify-tools
   mkdir target
   ./autogen.sh
-  ./configure --prefix=`pwd`/target
+  ./configure --prefix=$HOME/.local
   make
   make install
-  mv target/bin/* $HOME/.local/bin
-  mv lib/* $HOME/.local/lib
   cd ..
   rm -rf inotify-tools
 )}
 check_package_inotify-tools() {
-  which inotifywait
+  which inotifywait &>/dev/null
 }
 
 # --------------------------------------------------------------
@@ -312,11 +310,12 @@ check_default_alpine() {
 # --------------------- package related ------------------------
 
 check_package() {
+  sleep 0.1 # wait for filesystem to update...
   pack=$1
   if declare -F check_package_$pack > /dev/null; then
     check_package_$pack
   else
-    which $pack > /dev/null || check_default_$system $pack
+    which $pack &> /dev/null || check_default_$system $pack
   fi
 }
 

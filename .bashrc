@@ -103,10 +103,11 @@ alias ll='ls -alF'
 alias la='ls -A'
 alias l='ls -CF'
 
-# report average/maximum memory usage
-# https://superuser.com/a/1169636
+# report average/maximum memory usage https://superuser.com/a/1169636
 # make it report more verbosely with -v flag. https://stackoverflow.com/a/46874737
-alias time="`which time` -f 'real\t%E\nuser\t%U\nsys\t%S\n,amem\t%K\nmmem\t%M\n'"
+if which time &>/dev/null; then
+    alias time="`which time` -f 'real\t%E\nuser\t%U\nsys\t%S\n,amem\t%K\nmmem\t%M\n'"
+fi
 
 # Add an "alert" alias for long running commands.  Use like so:
 #   sleep 10; alert

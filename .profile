@@ -20,7 +20,7 @@ export LC_ALL=C.UTF-8
 
 
 # FIXME append only when not included already? like .cargo/env does?
-export PATH=$PATH:$HOME/.local/bin # for stack
+export PATH=$HOME/.local/bin:$PATH # binaries in ./local/bin has higher precedence than global binaries
 
 export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:/$HOME/.local/lib
 
@@ -56,15 +56,13 @@ export CLF_COLOR=1
 # disable other users to 'write' to my terminal
 mesg n 2> /dev/null || true
 
-if which tmux; then
-    # auto tmux
-    # https://unix.stackexchange.com/a/113768
-    if command -v tmux &> /dev/null && [ -n "$PS1" ] && [ -z "$TMUX" ]; then
-      case "$TERM" in
-        *screen*) ;;
-        *tmux*) ;;
-        #*) exec tmux
-        *) tmux list-sessions && tmux -2 attach || tmux -2
-      esac
-    fi
+# auto tmux
+# https://unix.stackexchange.com/a/113768
+if command -v tmux &> /dev/null && [ -n "$PS1" ] && [ -z "$TMUX" ]; then
+  case "$TERM" in
+    *screen*) ;;
+    *tmux*) ;;
+    #*) exec tmux
+    *) tmux list-sessions && tmux -2 attach || tmux -2
+  esac
 fi
