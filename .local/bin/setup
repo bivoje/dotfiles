@@ -231,7 +231,7 @@ linstall_package_lazygit() {(set -e
 
     cd dash
     case `uname -m` in
-        "x86-64") mv dash-amd64 $HOME/.local/bin ;;
+        "x86_64") mv dash-amd64 $HOME/.local/bin ;;
         *)  echo "installing dash for `uname -m` is not implemented yet"
             return 1 ;;
     esac
@@ -242,6 +242,29 @@ linstall_package_lazygit() {(set -e
     rm -rf dash
 )}
 
+l_packs+=(bat)
+linstall_package_bat() {(set -e
+    BAT_VERSION="v0.22.1" # TODO dynamically fetch?
+    case `uname -m` in
+        "x86_64") BAT_ARCH="i686-unknown-linux-musl" ;;
+        *)  echo "installing bat for `uname -m` is not implemented yet"
+            return 1 ;;
+    esac
+    BAT_NAME="bat-${BAT_VERSION}-${BAT_ARCH}"
+
+    wget "https://github.com/sharkdp/bat/releases/download/${BAT_VERSION}/${BAT_NAME}.tar.gz"
+
+    tar -xf ${BAT_NAME}.tar.gz
+    rm ${BAT_NAME}.tar.gz
+
+    cd ${BAT_NAME}
+    mv bat $HOME/.local/bin
+    mkdir -p $HOME/.local/share/man/man1
+    mv bat.1 $HOME/.local/share/man/man1/
+
+    cd ..
+    rm -rf ${BAT_NAME}
+)}
 
 l_packs+=(clf)
 linstall_package_clf() {(set -e
