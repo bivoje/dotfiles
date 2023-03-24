@@ -11,6 +11,17 @@
 
 " use :ter[minal] to open terminal as pane
 
+" use <C-r>" to paste content in temporary buffer during command mode
+
+" %s//<target>/g matches for recent search pattern
+
+" note that "" is temporary, while "0 is only used for yanked data
+
+" :as[cii] == ga
+
+" g8 shows utf8 encoding of a character under the cursor
+" 8g8 finds illelgal UTF8 byte sequence
+
 " applied when opening file
 set fileencodings=utf8,euc-kr
 " applied when editing file
@@ -30,9 +41,9 @@ fun! CleanTrailingSpaces()
 endfun
 if has("autocmd")
     "   guard by extension
-    autocmd BufWritePre *.c,*.cpp,*.zig,*.py,*.rs,*.lalrpop,*.sh,*.hs,*.js :call CleanTrailingSpaces()
+    "autocmd BufWritePre *.c,*.cpp,*.zig,*.py,*.rs,*.lalrpop,*.sh,*.hs,*.js,Makefile :call CleanTrailingSpaces()
     "   guard by filetype (whenever vim sets filetype)
-    "autocmd FileType c,cpp autocmd BufWritePre <buffer> %s/\s\+$//e
+    autocmd FileType c,cpp,zig,python,rust,sh,haskell,javascript,make,vim autocmd BufWritePre <buffer> call CleanTrailingSpaces()
     " Note that filetypes that are detected automatically can be found in /usr/share/vim/vim*/filetype.vim
     " and corresponding syntax files are in /usr/share/vim/vim*/syntax/*
     " https://vi.stackexchange.com/a/16950
