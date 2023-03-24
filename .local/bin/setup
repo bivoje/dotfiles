@@ -79,6 +79,19 @@ ginstall_package_gcc() {
   esac
 }
 
+l_packs+=(tt)
+linstall_package_tt() {(set -e
+    require_packages curl
+    curl --create-dirs -L https://github.com/lemnos/tt/releases/download/v0.4.2/tt-linux -o $HOME/.local/bin/tt && chmod +x $HOME/.local/bin/tt
+    curl --create-dirs -L https://github.com/lemnos/tt/releases/download/v0.4.2/tt.1.gz  -o $HOME/.local/share/man/man1/tt.1.gz
+    cat > $HOME/.local/bin/ttq <<-'EOF'
+	#!/bin/bash
+	num=${1:-5}
+	curl http://api.quotable.io/quotes/random?limit=$num | jq '[.[] | .text=.content|.attribution=.author]' | tt -quotes -
+	EOF
+    chmod +x $HOME/.local/bin/ttq
+)}
+
 # installs git locally.
 # useful when global git is too old but you are not root.
 # requires git command available for cloning the source code.
@@ -119,7 +132,7 @@ linstall_package_rlwrap() {(set -e
 
 l_packs+=(libevent)
 linstall_package_libevent() {(set -e
-  require_packages gcc make 
+  require_packages gcc make
   # the lastest version
   wget --no-check-certificate https://github.com/libevent/libevent/releases/download/release-2.1.12-stable/libevent-2.1.12-stable.tar.gz
   tar -zxf libevent-*.tar.gz
@@ -164,7 +177,7 @@ l_packs+=(tmux)
 linstall_package_tmux() {(set -e
   require_packages libevent ncurses
   # 2022-11-15
-  # $ uname -a >> Linux shepherd8 5.4.0-131-generic #147~18.04.1-Ubuntu SMP Sat Oct 15 13:10:18 UTC 2022 x86_64 x86_64 x86_64 GNU/Linux 
+  # $ uname -a >> Linux shepherd8 5.4.0-131-generic #147~18.04.1-Ubuntu SMP Sat Oct 15 13:10:18 UTC 2022 x86_64 x86_64 x86_64 GNU/Linux
   # $ ldd --version >> ldd (Ubuntu GLIBC 2.27-3ubuntu1.5) 2.27
   # following instruction in https://github.com/tmux/tmux/wiki/Installing
   # but had to adjust versions & options for old stinky shepherd setting
