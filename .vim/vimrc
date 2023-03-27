@@ -204,14 +204,16 @@ set smartindent " set si
 " # of columns that <tab> would occupy
 set tabstop=8
 
+
 " use equivalent # of space whenever tab
 set expandtab " set et
-
 " when inserting tab at ^, use shiftwidth instead of tabstop
 set smarttab
-
 " base indent width
 set shiftwidth=4
+
+autocmd FileType sh set noexpandtab shiftwidth=8 list
+
 
 " show line and column number
 set ruler
