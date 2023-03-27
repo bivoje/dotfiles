@@ -1,43 +1,172 @@
 #!/bin/bash
-# stolen from https://gist.github.com/roberd13/c2c3786380c6fb3c2860a3ac13d019f4
-# Use this script to run the same command across multiple hosts.
-# You must have passwordless ssh enabled
-# You need to create hostnames.txt file with the hosts you want to run the commands on
-# Usage Example ./runcommand.sh "service network restart"
 
+: ' <- this works as multi-line comment in bash https://stackoverflow.com/a/43158193
 # NOTE difference between ${ar[*]} and ${ar[@]}
 # https://unix.stackexchange.com/a/135011
 
 # NOTE if outputs from different servers interven,
 # https://unix.stackexchange.com/a/476089
 
-# TODO --get ???
+TODO --get ???
+https://stackoverflow.com/a/21110306
 
-# TODO usage documentation with examples
+TODO option to sequential execution
+'
 
+usage() {
+	printf \
+"Usage: $0 [OPTIONS] -- [ARGS]
+
+Description:
+	Execute bash shell command or copy files on multiple host machines
+	using ssh. If you want apply different username or certification for
+	each server, use .ssh/config and run $0 without '-u' or '-i' options.
+	Given command is executed in parallel so that outputs can appear
+	intervening. $0 forces line buffering; which means, even if outputs
+	from hosts get mixed, at least, they don't get merged within each line.
+	Don't forget to quote arguemtns when it includes '| ~ \$var ;' etc.
+	Also, prepend 'set -o pipefail' or 'set -e' for safer execution.
+
+Options:
+	--help		print this help message then exit.
+
+	-v		verbosely execute given command;
+	--verbose	it adds 'set -x' before command.
+
+	-n		stop right before executing the command;
+	--dry-run	do nothing irreducible.
+
+	-s <passwd>	execute command in privileged mode;
+	--sudo <passwd>	be careful to not leave password in the shell history.
+
+	-h <file>	read hostnames from given file;
+	--host <file>	any whitespace seperates hostname.
+
+	-i <file>	identity file for ssh publickey login;
+			this, or you should have set it up in .ssh/config.
+
+	-u <name>	username to login to remote host;
+	--user <name>	if not specified, current username is used.
+
+	--mode <mode>	operate in <mode> (cmd, put, get), defaults to 'cmd';
+			read sections below for more information.
+
+	--skip-unreachable
+			ignore hosts that are not reachable;
+			by default, it stops if any found, before execution.
+
+	--color <opt>	'auto', 'always'/'yes', 'never'/'no'
+
+	<host>		any positional arguments before '--' are hostnames;
+			can be used with '-h' option simultaneously.
+			list is sorted & unique-d then checked for reachability.
+
+CMD mode:
+	[ARGS] are joined to form a COMMAND and gets executed on each remote
+	machines.
+
+PUT mode:
+	[ARGS] except the last one are interpreted as files to copy to remote
+	machines and a target path. e.g. '-- src1 src2 src3 dst' copies files
+	'src{1,2,3}' from local machine to 'dst' in remote machine.
+
+GET mode:
+	TODO
+
+Examples:
+	# simple self-introduction
+	\$ $0 213.144.23.5 213.144.23.6 -i .ssh/id_rsa -- hostname
+	> [213.144.23.5] remote1
+	> [213.144.23.6] remote2
+
+	# if you set up /etc/hosts, you can use hostnames rightaway
+	# querying users having home directory
+	\$ $0 remote1 remote2 -i .ssh/id_rsa -- 'ls /home | xargs'
+	> [remote1] john_romeo jd.carmack
+	> [remote2] wozniak ritchie stallman
+
+	# if you set up .ssh/ you can omit -i option
+	# querying remote shell variable
+	\$ $0 remote1 remote2 -- 'echo \$TIME_STYLE; ls -l'
+	> [remote2] long-iso
+	> [remote2] -rwxr-xr-x 1 admin admin  319 2023-03-26 07:22 create_user
+	> [remote1] iso
+	> [remote1] drwx------ 2 admin admin     4096 03-27 01:35 cache
+	> [remote1] drwxrwxr-x 9 admin admin     4096 03-23 13:12 cmake-3.26.1
+	> [remote2] -rw-rw-r-- 1 admin admin   80 2023-03-27 04:30 hosts
+	> [remote2] -rwxrwxr-x 1 admin admin 7544 2023-03-27 11:12 pd_sh.sh
+	> [remote1] -rw-rw-r-- 1 admin admin 10667838 03-23 14:39 cmake-3.26.1.tar.gz
+	> [remote2] -rw-r--r-- 1 admin admin  160 2023-03-26 06:24 TOP_SECREt
+
+	# using -h <file>, with previlage
+	\$ cat hosts
+	> remote2 remote3
+	>   remote4
+	> remote 5
+	\$ $0 -h hosts remote1 -s 'admin_passwd' -- cat /root/secret
+	> [remote5] a meal.
+	> [remote2] and beauty,
+	> [remote4] of tea after
+	> [remote1] For health
+	> [remote3] take a cup
+
+	# put files on remote hosts
+	\$ $0 remote1 remote2 --mode put -- admin.sh deluser.sh config.yaml .ssh/key.pub /home/admin/moved/
+	> [remote1] sending to remote1 finished
+	> [remote2] sending to remote2 finished
+"
+}
+
+OPT_VERBOSE=''
+OPT_DRY=''
+OPT_SUDO=''
+OPT_HOSTFILE=''
+OPT_IDENTFILE=''
+OPT_MODE='cmd'
+OPT_USERNAME='' # TODO
+OPT_UNRCH='error'
+OPT_COLOR='auto'
 OPT_HOSTS=()
 
 while [[ $# -gt 0 ]]; do
 	case $1 in
+		--help)
+			usage
+			exit 0
+			;;
 		-v|--verbose)
 			OPT_VERBOSE='-v'
 			shift ;;
 		-n|--dry-run)
 			OPT_DRY='yes'
 			shift ;;
-		-h|--hostfile)
-			OPT_HOSTFILE="$2"
-			shift; shift ;;
 		-s|--sudo)
 			OPT_SUDO="$2"
 			shift; shift ;;
-		--put)
-			OPT_PUT='yes'
+		-h|--hostfile)
+			OPT_HOSTFILE="$2"
+			shift; shift ;;
+		-i)
+			OPT_IDENTFILE="$2"
+			shift; shift ;;
+		-u|--user) # TODO
+			echo "'--user' option not implemented yet :P"
+			exit 1
+			OPT_USERNAME="$2"
+			shift; shift ;;
+		--mode)
+			OPT_MODE="$2"
+			shift; shift ;;
+		--skip-unreachable)
+			OPT_UNRCH='skip'
 			shift ;;
+		--color)
+			OPT_COLOR="$2"
+			shift; shift ;;
 		--) # end of flags
 			shift; break ;;
 		-*|--*)
-			echo "unknown option; '$1' ignoring... "
+			echo "unknown option '$1'"
 			exit 1 ;;
 		*)
 			OPT_HOSTS+=($1) # NOTE whitespace splits the hostname!
@@ -47,61 +176,120 @@ done
 
 
 ############################
+## process identify file
+
+case "$OPT_COLOR" in
+	always|auto|yes) # TODO auto color..?
+		RED="`tput setaf 1`"
+		YELLOW="`tput setaf 3`"
+		NC="`tput sgr0`"
+		;;
+	no|never) ;;
+	*)
+		echo "unrecognized color option '$OPT_COLOR'. continuing with auto..."
+		;;
+esac
+
+
+############################
+## process identify file
+
+if [ -n "$OPT_IDENTFILE" ]; then
+	if [ -f $OPT_IDENTFILE -a `stat -c "%a" $OPT_IDENTFILE` = 600 ]; then
+		IDENTITY="-i $OPT_IDENTFILE"
+	else
+		echo invalied identity file or file permission is not 600
+		exit 2
+	fi
+fi
+
+############################
 ## process host list
 
 HOSTS=("${OPT_HOSTS[@]}")
 
 if [ -n "$OPT_HOSTFILE" ]; then
-	readarray -t OPT_HOSTS_F < "$OPT_HOSTFILE" # FIXME only delimited by newline; element might contain whitespace :(
-	if [ $? -ne 0 ]; then exit 2; fi
-	HOSTS+=("${OPT_HOSTS_F[@]}")
+	readarray -t OPT_HOSTS_F < "$OPT_HOSTFILE"
+	HOSTS+=(${OPT_HOSTS_F[@]}) # NOTE whitespace splits the hostname!
 fi
 
 # leave only uniq hostnames; don't need IFS re-setting since all elems should not contain whitespace anyways
 # https://stackoverflow.com/a/13648438
 HOSTS=($(printf "%s\n" "${HOSTS[@]}" | sort -u | tr '\n' ' '))
 
-# TODO check if all hosts are available https://superuser.com/a/1465650
-# TODO option to ignore failed hosts ?
-# TODO /etc/host change needed beforehand, or ssh hostname resolve needed
+# check if all hosts are available (https://superuser.com/a/1465650)
+HOSTS_UNRCH=()
+
+# FIXME it doesn't check for hostnames defined in .ssh/config
+# TODO add --ignore option
+for host in "${HOSTS[@]}"; do
+	if ! nc -z $OPT_VERBOSE $host 22 &>/dev/null; then
+		HOSTS_UNRCH+=($host)
+	fi
+done
+
+if [ ${#HOSTS_UNRCH[@]} -ne 0 ]; then
+	if [ $OPT_UNRCH = "error" ]; then
+		printf "$YELLOW :: HOSTS UNREACHABLE$NC %s\n" "${HOSTS_UNRCH[*]}"
+		printf "$YELLOW :: EXITING $NC\n"
+		exit  4
+	else
+		printf "$YELLOW :: SKIPPING HOSTS UNREACHABLE$NC %s\n" "${HOSTS_UNRCH[*]}"
+		HOSTS=($(comm -23 \
+			<(printf "%s\n" "${HOSTS[@]}") \
+			<(printf "%s\n" "${HOSTS_UNRCH[@]}") \
+		))
+	fi
+fi
+
+MAX_HOSTS_WIDTH=$(printf "%s\n" "${HOSTS[@]}" | awk '{print length}' | sort -n | tail -1)
 
 
 ############################
 ## process following arguments
 
-if [ -z "$OPT_PUT" ]; then
-	# remote command
+case "$OPT_MODE" in
+	cmd|CMD|command|COMMAND)
+		COMMANDS=()
 
-	COMMANDS=()
+		if [ -n "$OPT_VERBOSE" ]; then
+			COMMANDS+=("set -x;")
+		fi
 
-	if [ -n "$OPT_VERBOSE" ]; then
-		COMMANDS+=("set -x;")
-	fi
+		COMMANDS+=("$@")
 
-	COMMANDS+=("$@")
+		COMMAND="${COMMANDS[*]}"
+		OPT_MODE='cmd'
+		;;
 
-	COMMAND="${COMMANDS[*]}"
+	put|PUT)
+		OPT_MODE='put'
+		;& # cascading switch clause https://unix.stackexchange.com/a/75356
 
-else
-	# copying files
-	SRCS=("$@")
-	if [ ${#SRCS[@]} -lt 2 ]; then
-		echo "should specify at least one SRC and a DST"
-		exit 3;
-	fi
+	get|GET)
+		if [ "$OPT_MODE" != "put" ]; then OPT_MODE='get'; fi
 
-	DST="${SRCS[-1]}"
-	unset SRCS[${#SRCS[@]}-1]
-fi
+		SRCS=("$@")
+		if [ ${#SRCS[@]} -lt 2 ]; then
+			echo "should specify at least one SRC and a DST"
+			exit 3;
+		fi
+
+		# DST = SRCS.pop_last()
+		DST="${SRCS[-1]}"
+		unset SRCS[${#SRCS[@]}-1]
+		;;
+
+	*)
+		echo "unrecognized mode '$OPT_MODE'"
+		exit 6
+		;;
+esac
 
 
 ############################
 ## end of arg processing
 
-YELLOW="`tput setaf 3`"
-NC="`tput sgr0`"
-
-# TODO no color option?
 
 #if [ -n "$OPT_VERBOSE" ]; then
 	if [ -z "$OPT_PUT" ]; then
@@ -115,6 +303,10 @@ NC="`tput sgr0`"
 	if [ -n "$OPT_SUDO" ]; then
 		printf "$YELLOW :: WITH SUDO PREVILEGE$NC\n"
 	fi
+
+	if [ -n "$IDENTITY" ]; then
+		printf "$YELLOW :: USING IDENTITY FILE$NC %s\n" $OPT_IDENTFILE
+	fi
 #fi
 
 
@@ -122,39 +314,44 @@ NC="`tput sgr0`"
 ## body of execution
 
 execute_body() {
-	# TODO color stderr??
 
+	# see https://stackoverflow.com/a/12797512 for `#...` \ multi-line comment tricks
 	#for host in `grep -Poe "Host \K\S+" ~/.ssh/config | tail -n+2`; do
 	for host in "${HOSTS[@]}"; do
-		# TODO adaptive pad-width setting
-		host_rep="`printf '[%8s]' $host`"
+		host_rep="`printf '[%*s]' $MAX_HOSTS_WIDTH $host`"
 		if [ -n "$OPT_SUDO" ]; then
 			# https://stackoverflow.com/a/39710432
 			# for some reason, sudo -p option ignores given argument when its empty; so we use terminal bell (\x07)
 			# to make it nonempty while not showing anything on the screen
-			ssh $host "sudo -p '' -S bash" "-c '$COMMAND'" < <(echo "$OPT_SUDO") 2>&1 | sed "s/^/$host_rep /" &
+			stdbuf -o L ssh $IDENTITY $host "sudo -p '' -S bash" "-c '$COMMAND'" \
+				< <(echo "$OPT_SUDO") `# provide password to sudo -S via stdin` \
+				2> >(while read line; do echo "$RED$line$NC" >&1; done) `# color stderr https://serverfault.com/a/59279` \
+				| sed -e '$a\' `# adds newline to EOF if there is not https://unix.stackexchange.com/a/31955` \
+				| sed "s/^/$host_rep /" `# prepend host_rep in ^` \
+				& `# run in parallel`
 		else
-			# TODO what if output is totally empty?
-			ssh $host "bash" "-c '$COMMAND'" </dev/null 2>&1 | sed "s/^/$host_rep /" &
+			stdbuf -o L ssh $IDENTITY $host "bash" "-c '$COMMAND'" \
+				</dev/null `# prevent reading from terminal` \
+				2> >(while read line; do echo "$RED$line$NC" >&1; done) `# color stderr https://serverfault.com/a/59279` \
+				| sed -e '$a\' `# adds newline to EOF if there is not https://unix.stackexchange.com/a/31955` \
+				| sed "s/^/$host_rep /" `# prepend host_rep in ^` \
+				& `# run in parallel`
 		fi
 	done
 
 	wait
 }
 
-copy_body() {
+put_body() {
 	#for host in `grep -Poe "Host \K\S+" ~/.ssh/config | tail -n+2`; do
 	for host in "${HOSTS[@]}"; do
+		host_rep="`printf '[%*s]' $MAX_HOSTS_WIDTH $host`"
 		if [ -n "$OPT_SUDO" ]; then
-			# https://stackoverflow.com/a/39710432
-			# for some reason, sudo -p option ignores given argument when its empty; so we use terminal bell (\x07)
-			# to make it nonempty while not showing anything on the screen
-			#ssh $host "sudo -p '' -S bash" "-c '$COMMAND'" < <(echo "$OPT_SUDO") 2>&1 | sed "s/^/[$host] /"
 			# TODO
 			echo ha
 		else
-			# TODO elaborate reporing...
-			scp -q "${SRCS[@]}" $host:$DST && echo sending to $host finished &
+			/usr/bin/time -f '%E' scp $IDENTITY -q "${SRCS[@]}" $host:$DST 2>&1 `# time outputs to stderr`\
+				| sed "s/^/$host_rep took /" | sed "s/$/ secs/" &
 		fi
 	done
 
@@ -165,10 +362,10 @@ if [ -n "$OPT_DRY" ]; then
 	exit 0;
 fi
 
-stdbuf -oL
-
-if [ -z "$OPT_PUT" ]; then
-	execute_body
+if [ "$OPT_MODE" = 'put' ]; then
+	put_body
+elif [ "$OPT_MODE" = 'get' ]; then
+	echo TODO!
 else
-	copy_body
+	execute_body
 fi
