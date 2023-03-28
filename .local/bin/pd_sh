@@ -21,9 +21,15 @@ Description:
 	Execute bash shell command or copy files on multiple host machines
 	using ssh. If you want apply different username or certification for
 	each server, use .ssh/config and run $0 without '-u' or '-i' options.
+
 	Given command is executed in parallel so that outputs can appear
 	intervening. $0 forces line buffering; which means, even if outputs
 	from hosts get mixed, at least, they don't get merged within each line.
+
+	By default stderr streams are colored red, you can turn it off by
+	'--color no'. Note that the hostname prefix ([<host>]) is also a part
+	of stderr stream, so that you can redirect it cleanly.
+
 	Don't forget to quote arguemtns when it includes '| ~ \$var ;' etc.
 	Also, prepend 'set -o pipefail' or 'set -e' for safer execution.
 
@@ -325,14 +331,20 @@ execute_body() {
 			# to make it nonempty while not showing anything on the screen
 			stdbuf -o L ssh $IDENTITY $host "sudo -p '' -S bash" "-c '$COMMAND'" \
 				< <(echo "$OPT_SUDO") `# provide password to sudo -S via stdin` \
-				2> >(while read line; do echo "$RED$line$NC" >&1; done) `# color stderr https://serverfault.com/a/59279` \
+				`# color stderr https://serverfault.com/a/59279` \
+				2> >(while read line; do echo "$RED$line$NC"; done \
+					| sed -e '$a\' | sed "s/^/$host_rep /" >&2) `# apply formatting to stderr seperately` \
+				`# now we can redirect stderr cleanly; like pd_sh ... 2>/dev/null` \
 				| sed -e '$a\' `# adds newline to EOF if there is not https://unix.stackexchange.com/a/31955` \
 				| sed "s/^/$host_rep /" `# prepend host_rep in ^` \
 				& `# run in parallel`
 		else
 			stdbuf -o L ssh $IDENTITY $host "bash" "-c '$COMMAND'" \
 				</dev/null `# prevent reading from terminal` \
-				2> >(while read line; do echo "$RED$line$NC" >&1; done) `# color stderr https://serverfault.com/a/59279` \
+				`# color stderr https://serverfault.com/a/59279` \
+				2> >(while read line; do echo "$RED$line$NC"; done \
+					| sed -e '$a\' | sed "s/^/$host_rep /" >&2) `# apply formatting to stderr seperately` \
+				`# now we can redirect stderr cleanly; like pd_sh ... 2>/dev/null` \
 				| sed -e '$a\' `# adds newline to EOF if there is not https://unix.stackexchange.com/a/31955` \
 				| sed "s/^/$host_rep /" `# prepend host_rep in ^` \
 				& `# run in parallel`
