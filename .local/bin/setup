@@ -81,7 +81,7 @@ ginstall_package_gcc() {
 
 l_packs+=(tt)
 linstall_package_tt() {(set -e
-    require_packages curl
+    require_packages curl jq
     curl --create-dirs -L https://github.com/lemnos/tt/releases/download/v0.4.2/tt-linux -o $HOME/.local/bin/tt && chmod +x $HOME/.local/bin/tt
     curl --create-dirs -L https://github.com/lemnos/tt/releases/download/v0.4.2/tt.1.gz  -o $HOME/.local/share/man/man1/tt.1.gz
     cat > $HOME/.local/bin/ttq <<-'EOF'
@@ -90,6 +90,29 @@ linstall_package_tt() {(set -e
 	curl http://api.quotable.io/quotes/random?limit=$num | jq '[.[] | .text=.content|.attribution=.author]' | tt -quotes -
 	EOF
     chmod +x $HOME/.local/bin/ttq
+)}
+
+: 'https://superuser.com/a/665181
+usage: show progress bar
+extract:  pv mysql.tar.gz | tar -xz
+compress: tar cf - /folder-with-big-files -P | pv -s $(du -sb /folder-with-big-files | awk '{print $1}') | gzip > big-files.tar.gz
+'
+l_packs+=(pv)
+linstall_package_pv() {(set -e
+
+	# https://askubuntu.com/a/30581
+	depfile="`apt-cache search ^pv$ -f 2>/dev/null | grep -Po 'Filename: .*/\Kpv_.*.deb'`"
+	apt download pv
+	#dpkg-deb --contents $depfile # check that deb file does not delivers any runtime significat files other than the binary itself
+
+	# https://askubuntu.com/a/1142323
+	mkdir pv_tmp # extract with prefix pv_tmp/
+	dpkg-deb -x $depfile pv_tmp
+
+	mv pv_tmp/usr/bin/pv $HOME/.local/bin/
+	mv pv_tmp/usr/share/man/man1/pv.1.gz $HOME/.local/share/man/man1/
+
+	rm -r pv_tmp $depfile
 )}
 
 # installs git locally.
