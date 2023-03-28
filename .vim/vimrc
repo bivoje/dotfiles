@@ -140,10 +140,11 @@ noremap <C-l> <C-W>l
 inoremap jk <esc>
 inoremap JK <esc>
 inoremap <esc> <NOP>
-cnoremap jk <esc>
-cnoremap JK <esc>
-vnoremap jk <esc>
-vnoremap JK <esc>
+"cnoremap jk <esc>
+"cnoremap JK <esc>
+"vnoremap jk <esc>
+"vnoremap JK <esc>
+" they make it rather hard to navidate!
 
 " stop using arrow keys!
 nnoremap <Up> <NOP>
