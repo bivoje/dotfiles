@@ -1,14 +1,13 @@
 #!/bin/bash
 
+set -e
+
 : ' <- this works as multi-line comment in bash https://stackoverflow.com/a/43158193
 # NOTE difference between ${ar[*]} and ${ar[@]}
 # https://unix.stackexchange.com/a/135011
 
 # NOTE if outputs from different servers interven,
 # https://unix.stackexchange.com/a/476089
-
-TODO --get ???
-https://stackoverflow.com/a/21110306
 
 TODO option to sequential execution
 '
@@ -54,8 +53,8 @@ Options:
 	-u <name>	username to login to remote host;
 	--user <name>	if not specified, current username is used.
 
-	--mode <mode>	operate in <mode> (cmd, put, get), defaults to 'cmd';
-			read sections below for more information.
+	-m		operate in <mode> (cmd, put, get), defaults to 'cmd';
+	--mode <mode>	read sections below for more information.
 
 	--skip-unreachable
 			ignore hosts that are not reachable;
@@ -160,7 +159,7 @@ while [[ $# -gt 0 ]]; do
 			exit 1
 			OPT_USERNAME="$2"
 			shift; shift ;;
-		--mode)
+		-m|--mode)
 			OPT_MODE="$2"
 			shift; shift ;;
 		--skip-unreachable)
@@ -201,7 +200,8 @@ esac
 ## process identify file
 
 if [ -n "$OPT_IDENTFILE" ]; then
-	if [ -f $OPT_IDENTFILE -a `stat -c "%a" $OPT_IDENTFILE` = 600 ]; then
+	# use && instead of '-a' to utilize boolean shortcut
+	if [ -f "$OPT_IDENTFILE" ] && [ "`stat -c "%a" $OPT_IDENTFILE`" = 600 ]; then
 		IDENTITY="-i $OPT_IDENTFILE"
 	else
 		echo invalied identity file or file permission is not 600
@@ -268,12 +268,12 @@ case "$OPT_MODE" in
 		OPT_MODE='cmd'
 		;;
 
-	put|PUT)
-		OPT_MODE='put'
+	get|GET)
+		OPT_MODE='get'
 		;& # cascading switch clause https://unix.stackexchange.com/a/75356
 
-	get|GET)
-		if [ "$OPT_MODE" != "put" ]; then OPT_MODE='get'; fi
+	put|PUT)
+		if [ "$OPT_MODE" != "get" ]; then OPT_MODE='put'; fi
 
 		SRCS=("$@")
 		if [ ${#SRCS[@]} -lt 2 ]; then
@@ -325,44 +325,61 @@ execute_body() {
 	#for host in `grep -Poe "Host \K\S+" ~/.ssh/config | tail -n+2`; do
 	for host in "${HOSTS[@]}"; do
 		host_rep="`printf '[%*s]' $MAX_HOSTS_WIDTH $host`"
+		EXEC=()
+
 		if [ -n "$OPT_SUDO" ]; then
 			# https://stackoverflow.com/a/39710432
 			# for some reason, sudo -p option ignores given argument when its empty; so we use terminal bell (\x07)
 			# to make it nonempty while not showing anything on the screen
-			stdbuf -o L ssh $IDENTITY $host "sudo -p '' -S bash" "-c '$COMMAND'" \
-				< <(echo "$OPT_SUDO") `# provide password to sudo -S via stdin` \
-				`# color stderr https://serverfault.com/a/59279` \
-				2> >(while read line; do echo "$RED$line$NC"; done \
-					| sed -e '$a\' | sed "s/^/$host_rep /" >&2) `# apply formatting to stderr seperately` \
-				`# now we can redirect stderr cleanly; like pd_sh ... 2>/dev/null` \
-				| sed -e '$a\' `# adds newline to EOF if there is not https://unix.stackexchange.com/a/31955` \
-				| sed "s/^/$host_rep /" `# prepend host_rep in ^` \
-				& `# run in parallel`
+			EXEC+=("sudo -p '' -S bash -c '$COMMAND'")
+			EXEC+=("    < <(echo '$OPT_SUDO')") # provide password to sudo -S via stdin
+
 		else
-			stdbuf -o L ssh $IDENTITY $host "bash" "-c '$COMMAND'" \
-				</dev/null `# prevent reading from terminal` \
-				`# color stderr https://serverfault.com/a/59279` \
-				2> >(while read line; do echo "$RED$line$NC"; done \
-					| sed -e '$a\' | sed "s/^/$host_rep /" >&2) `# apply formatting to stderr seperately` \
-				`# now we can redirect stderr cleanly; like pd_sh ... 2>/dev/null` \
-				| sed -e '$a\' `# adds newline to EOF if there is not https://unix.stackexchange.com/a/31955` \
-				| sed "s/^/$host_rep /" `# prepend host_rep in ^` \
-				& `# run in parallel`
+			EXEC+=("bash -c '$COMMAND'")
+			EXEC+=("    </dev/null") # prevent reading from terminal
 		fi
+
+		EXEC+=("2> >(while read line; do echo \"$RED\$line$NC\"; done)") # color stderr https://serverfault.com/a/59279
+		EXEC+=("	| sed -e '\$a\\' | sed \"s/^/$host_rep /\" >&2") # apply formatting to stderr seperately
+
+		# now we can redirect stderr cleanly; like pd_sh ... 2>/dev/null
+		EXEC+=("| sed -e '\$a\\'") # adds newline to EOF if there is not https://unix.stackexchange.com/a/31955
+		EXEC+=("| sed \"s/^/$host_rep /\"") # prepend host_rep in
+
+		#printf "%s\n" "${EXEC[*]}"
+		stdbuf -o L ssh $IDENTITY $host "${EXEC[*]}" &
 	done
 
 	wait
 }
 
 put_body() {
-	#for host in `grep -Poe "Host \K\S+" ~/.ssh/config | tail -n+2`; do
 	for host in "${HOSTS[@]}"; do
 		host_rep="`printf '[%*s]' $MAX_HOSTS_WIDTH $host`"
+		dest="${DST//\$host/$host}" # https://stackoverflow.com/a/13210909
 		if [ -n "$OPT_SUDO" ]; then
 			# TODO
 			echo ha
 		else
-			/usr/bin/time -f '%E' scp $IDENTITY -q "${SRCS[@]}" $host:$DST 2>&1 `# time outputs to stderr`\
+			#FIXME error message treated as time stamp...
+			/usr/bin/time -f '%E' scp $IDENTITY -q "${SRCS[@]}" $host:$dest 2>&1 `# time outputs to stderr`\
+				| sed "s/^/$host_rep took /" | sed "s/$/ secs/" &
+		fi
+	done
+
+	wait
+}
+
+get_body() {
+	for host in "${HOSTS[@]}"; do
+		host_rep="`printf '[%*s]' $MAX_HOSTS_WIDTH $host`"
+		dest="${DST//\$host/$host}" # https://stackoverflow.com/a/13210909
+		if [ -n "$OPT_SUDO" ]; then
+			# TODO
+			echo ha
+		else
+			#FIXME error message treated as time stamp...
+			/usr/bin/time -f '%E' scp $IDENTITY -q $host:"${SRCS[*]}" $dest 2>&1 `# time outputs to stderr`\
 				| sed "s/^/$host_rep took /" | sed "s/$/ secs/" &
 		fi
 	done
@@ -377,7 +394,7 @@ fi
 if [ "$OPT_MODE" = 'put' ]; then
 	put_body
 elif [ "$OPT_MODE" = 'get' ]; then
-	echo TODO!
+	get_body
 else
 	execute_body
 fi
