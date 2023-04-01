@@ -178,3 +178,6 @@ export TMOUT=
 # bindings are not inherited, so put in here rather than .profile
 bind '"\eOD":backward-word'
 bind '"\eOC":forward-word'
+
+# prevent CTRL-S to suspend terminal
+stty -ixon
