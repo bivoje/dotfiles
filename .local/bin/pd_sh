@@ -128,7 +128,7 @@ OPT_SUDO=''
 OPT_HOSTFILE=''
 OPT_IDENTFILE=''
 OPT_MODE='cmd'
-OPT_USERNAME='' # TODO
+OPT_USERNAME=''
 OPT_UNRCH='error'
 OPT_COLOR='auto'
 OPT_HOSTS=()
@@ -154,9 +154,7 @@ while [[ $# -gt 0 ]]; do
 		-i)
 			OPT_IDENTFILE="$2"
 			shift; shift ;;
-		-u|--user) # TODO
-			echo "'--user' option not implemented yet :P"
-			exit 1
+		-u|--user)
 			OPT_USERNAME="$2"
 			shift; shift ;;
 		-m|--mode)
@@ -325,6 +323,13 @@ execute_body() {
 	#for host in `grep -Poe "Host \K\S+" ~/.ssh/config | tail -n+2`; do
 	for host in "${HOSTS[@]}"; do
 		host_rep="`printf '[%*s]' $MAX_HOSTS_WIDTH $host`"
+
+		if [ -n "$OPT_USERNAME" ]; then
+			user_host="${OPT_USERNAME}@$host"
+		else
+			user_host="$host"
+		fi
+
 		EXEC=()
 
 		if [ -n "$OPT_SUDO" ]; then
@@ -347,7 +352,7 @@ execute_body() {
 		EXEC+=("| sed \"s/^/$host_rep /\"") # prepend host_rep in
 
 		#printf "%s\n" "${EXEC[*]}"
-		stdbuf -o L ssh $IDENTITY $host "${EXEC[*]}" &
+		stdbuf -o L ssh $IDENTITY -o BatchMode=yes $user_host "${EXEC[*]}"
 	done
 
 	wait
