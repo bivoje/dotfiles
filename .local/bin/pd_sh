@@ -5,12 +5,8 @@ set -e
 : ' <- this works as multi-line comment in bash https://stackoverflow.com/a/43158193
 # NOTE difference between ${ar[*]} and ${ar[@]}
 # https://unix.stackexchange.com/a/135011
-
-# NOTE if outputs from different servers interven,
-# https://unix.stackexchange.com/a/476089
-
-TODO option to sequential execution
 '
+
 
 usage() {
 	printf \
@@ -43,6 +39,8 @@ Options:
 
 	-s <passwd>	execute command in privileged mode;
 	--sudo <passwd>	be careful to not leave password in the shell history.
+			use this feature with caution since it will may leave
+			the passwd in your shell's history.
 
 	-h <file>	read hostnames from given file;
 	--host <file>	any whitespace seperates hostname.
@@ -60,6 +58,9 @@ Options:
 			ignore hosts that are not reachable;
 			by default, it stops if any found, before execution.
 
+	--sequential	deal with each host one by one;
+			disabling the default parallel behavior.
+
 	--color <opt>	'auto', 'always'/'yes', 'never'/'no'
 
 	<host>		any positional arguments before '--' are hostnames;
@@ -72,11 +73,14 @@ CMD mode:
 
 PUT mode:
 	[ARGS] except the last one are interpreted as files to copy to remote
-	machines and a target path. e.g. '-- src1 src2 src3 dst' copies files
-	'src{1,2,3}' from local machine to 'dst' in remote machine.
+	machines and a target path on remotes. e.g. '-- src1 src2 src3 dst'
+	copies files 'src{1,2,3}' from local machine to 'dst' in remote machine.
 
 GET mode:
-	TODO
+	[ARGS] except the last one are interpreted as files to copy from remote
+	machines and a target path in local. you can use \$host in the target
+	path.  e.g. '-- src1 src2 src3 dir_\$host' copies files 'src{1,2,3}'
+	from remotes to 'dir_\$host' in local machine.
 
 Examples:
 	# simple self-introduction
@@ -128,8 +132,9 @@ OPT_SUDO=''
 OPT_HOSTFILE=''
 OPT_IDENTFILE=''
 OPT_MODE='cmd'
-OPT_USERNAME=''
+OPT_USERNAME="$USER"
 OPT_UNRCH='error'
+OPT_SEQUENTIAL=''
 OPT_COLOR='auto'
 OPT_HOSTS=()
 
@@ -163,6 +168,9 @@ while [[ $# -gt 0 ]]; do
 		--skip-unreachable)
 			OPT_UNRCH='skip'
 			shift ;;
+		--sequential)
+			OPT_SEQUENTIAL='yes'
+			shift ;;
 		--color)
 			OPT_COLOR="$2"
 			shift; shift ;;
@@ -182,7 +190,7 @@ done
 ## process identify file
 
 case "$OPT_COLOR" in
-	always|auto|yes) # TODO auto color..?
+	always|auto|yes) # FIXME auto color..?
 		RED="`tput setaf 1`"
 		YELLOW="`tput setaf 3`"
 		NC="`tput sgr0`"
@@ -296,20 +304,31 @@ esac
 
 
 #if [ -n "$OPT_VERBOSE" ]; then
-	if [ -z "$OPT_PUT" ]; then
+	case $OPT_MODE in
+	cmd)
 		printf "$YELLOW :: RUNNING COMMAND$NC '%s'\n" "$COMMAND"
 		printf "$YELLOW :: ON HOSTS$NC %s\n" "${HOSTS[*]}"
-	else
+		;;
+	put)
 		printf "$YELLOW :: SENDING FILE(S)$NC %s\n" "${SRCS[*]}"
-		printf "$YELLOW :: TO$NC '%q'$YELLOW ON HOSTS$NC %s\n" "$DST" "${HOSTS[*]}"
-	fi
+		printf "$YELLOW :: TO $NC'%q'$YELLOW ON HOSTS$NC %s\n" "$DST" "${HOSTS[*]}"
+		;;
+	get)
+		printf "$YELLOW :: GETTING FILE(S)$NC %s\n" "${SRCS[*]}"
+		printf "$YELLOW :: TO $NC'%q'$YELLOW FROM HOSTS$NC %s\n" "$DST" "${HOSTS[*]}"
+		;;
+	esac
 
 	if [ -n "$OPT_SUDO" ]; then
-		printf "$YELLOW :: WITH SUDO PREVILEGE$NC\n"
+		printf "$YELLOW :: AS $NC$OPT_USERNAME$YELLOW WITH SUDO PREVILEGE$NC\n"
 	fi
 
 	if [ -n "$IDENTITY" ]; then
-		printf "$YELLOW :: USING IDENTITY FILE$NC %s\n" $OPT_IDENTFILE
+		printf "$YELLOW :: AS $NC$OPT_USERNAME$YELLOW USING IDENTITY FILE $NC%s\n" $OPT_IDENTFILE
+	fi
+
+	if [ -n "$OPT_SEQUENTIAL" ]; then
+		printf "$YELLOW :: SEQUENTIALLY$NC\n"
 	fi
 #fi
 
@@ -323,12 +342,6 @@ execute_body() {
 	#for host in `grep -Poe "Host \K\S+" ~/.ssh/config | tail -n+2`; do
 	for host in "${HOSTS[@]}"; do
 		host_rep="`printf '[%*s]' $MAX_HOSTS_WIDTH $host`"
-
-		if [ -n "$OPT_USERNAME" ]; then
-			user_host="${OPT_USERNAME}@$host"
-		else
-			user_host="$host"
-		fi
 
 		EXEC=()
 
@@ -344,6 +357,8 @@ execute_body() {
 			EXEC+=("    </dev/null") # prevent reading from terminal
 		fi
 
+		# FIXME the coloring & formating is done in remote host; rather than local.
+		# this is far from what is intended but it works as well; leaving it this way for now...
 		EXEC+=("2> >(while read line; do echo \"$RED\$line$NC\"; done)") # color stderr https://serverfault.com/a/59279
 		EXEC+=("	| sed -e '\$a\\' | sed \"s/^/$host_rep /\" >&2") # apply formatting to stderr seperately
 
@@ -352,7 +367,11 @@ execute_body() {
 		EXEC+=("| sed \"s/^/$host_rep /\"") # prepend host_rep in
 
 		#printf "%s\n" "${EXEC[*]}"
-		stdbuf -o L ssh $IDENTITY -o BatchMode=yes $user_host "${EXEC[*]}"
+		if [ -n "$OPT_SEQUENTIAL" ]; then
+			stdbuf -o L ssh $IDENTITY -o BatchMode=yes "${OPT_USERNAME}@$host" "${EXEC[*]}"
+		else
+			stdbuf -o L ssh $IDENTITY -o BatchMode=yes "${OPT_USERNAME}@$host" "${EXEC[*]}" &
+		fi
 	done
 
 	wait
@@ -366,9 +385,15 @@ put_body() {
 			# TODO
 			echo ha
 		else
-			#FIXME error message treated as time stamp...
-			/usr/bin/time -f '%E' scp $IDENTITY -q "${SRCS[@]}" $host:$dest 2>&1 `# time outputs to stderr`\
-				| sed "s/^/$host_rep took /" | sed "s/$/ secs/" &
+			if [ -n "$OPT_SEQUENTIAL" ]; then
+				#FIXME error message treated as time stamp...
+				/usr/bin/time -f '%E' scp $IDENTITY -q "${SRCS[@]}" $host:$dest 2>&1 `# time outputs to stderr`\
+					| sed "s/^/$host_rep took /" | sed "s/$/ secs/"
+			else
+				/usr/bin/time -f '%E' scp $IDENTITY -q "${SRCS[@]}" $host:$dest 2>&1 `# time outputs to stderr`\
+					| sed "s/^/$host_rep took /" | sed "s/$/ secs/" &
+			fi
+
 		fi
 	done
 
@@ -384,8 +409,13 @@ get_body() {
 			echo ha
 		else
 			#FIXME error message treated as time stamp...
-			/usr/bin/time -f '%E' scp $IDENTITY -q $host:"${SRCS[*]}" $dest 2>&1 `# time outputs to stderr`\
-				| sed "s/^/$host_rep took /" | sed "s/$/ secs/" &
+			if [ -n "$OPT_SEQUENTIAL" ]; then
+				/usr/bin/time -f '%E' scp $IDENTITY -q $host:"${SRCS[*]}" $dest 2>&1 `# time outputs to stderr`\
+					| sed "s/^/$host_rep took /" | sed "s/$/ secs/"
+			else
+				/usr/bin/time -f '%E' scp $IDENTITY -q $host:"${SRCS[*]}" $dest 2>&1 `# time outputs to stderr`\
+					| sed "s/^/$host_rep took /" | sed "s/$/ secs/" &
+			fi
 		fi
 	done
 
