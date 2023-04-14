@@ -422,12 +422,13 @@ get_body() {
 		else
 			#FIXME error message treated as time stamp...
 			if [ -n "$OPT_SEQUENTIAL" ]; then
-				/usr/bin/time -f '%E' scp $IDENTITY -q $host:"${SRCS[*]}" $dest 2>&1 `# time outputs to stderr`\
+				/usr/bin/time -f '%E' scp -T $IDENTITY -q $host:"${SRCS[*]}" $dest 2>&1 `# time outputs to stderr`\
 					| sed "s/^/$host_rep took /" | sed "s/$/ secs/"
 			else
-				/usr/bin/time -f '%E' scp $IDENTITY -q $host:"${SRCS[*]}" $dest 2>&1 `# time outputs to stderr`\
+				/usr/bin/time -f '%E' scp -T $IDENTITY -q $host:"${SRCS[*]}" $dest 2>&1 `# time outputs to stderr`\
 					| sed "s/^/$host_rep took /" | sed "s/$/ secs/" &
 			fi
+			# adding -T for pattern expanding problem..  https://stackoverflow.com/a/54599326
 		fi
 	done
 
