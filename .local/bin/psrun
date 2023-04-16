@@ -13,7 +13,7 @@
 # $ psrun -l rust ps.rs input
 # $ psrun -l rust -c 'rustc --edition=2018 $1 -o ps' ps.rs input
 # $ psrun -l rust -e '"export RUST_BACKTRACE=full; ./ps < $2"' ps.rs input
-      
+
 
 default_compile() {
   case "$1" in
@@ -23,13 +23,23 @@ default_compile() {
 }
 
 default_execute() {
-  case "$1" in
-    rust)
-      echo '"export RUST_BACKTRACE=1; ./ps < $2"' ;;
-    golfscript)
-      echo '"cat $2 | golfscript $1"' ;;
-    python3)
-      echo '"cat $2 | python3 $1"' ;;
+	case "$1" in
+	rust)
+		echo 'RUST_BACKTRACE=1 ./ps < $INPUT' ;;
+	golfscript)
+		echo 'golfscript $1 < $INPUT' ;;
+	python3)
+		# from https://stackoverflow.com/a/59507107
+		echo \
+			'python3 $1 < $INPUT 2> >( \
+				sed -e "s/Traceback/\x1b[0;1;33;44m&\x1b[0m/g" \
+					-e "s/File \".*\.py\".*$/\x1b[0;1m&\x1b[0m/g" \
+					-re "s/\, line [0-9]\+/\x1b[0;1;31m&\x1b[0m/g" \
+					-re "s/ {4}(.*)$/\x1b[0;1;33m&\x1b[0m/g" \
+					-e "s/.*Error:.*$/\x1b[0;1;31m&\x1b[0m/g" \
+				>&2 \
+			)'
+		;;
   esac
 }
 
@@ -41,13 +51,25 @@ lang_from_src() {
     esac
 }
 
-# substitute $var 's with current global & parameter bindings
-# usage: export IT="rock"; RET="`echo '$1 hit $2 with $IT' | subst_args 'John' 'Jane'`"
-# NOTE $line only read till newline
 subst_args() {
-  read line
-  eline="echo $line"
-  echo "`eval \"$eline\"`"
+	str="$1"
+	shift
+
+	# https://stackoverflow.com/a/13210909
+
+	str="${str//\$1/$1}"
+	str="${str//\$2/$2}"
+	str="${str//\$3/$3}"
+	str="${str//\$4/$4}"
+	str="${str//\$5/$5}"
+
+	if [ -n "$INPUT" ]; then
+		str="${str//\$INPUT/$INPUT}"
+	else
+		str="${str//\$INPUT/\/dev\/null}"
+	fi
+
+	echo "$str"
 }
 
 LANG=''
@@ -99,8 +121,8 @@ if [ -n "$LANG" ]; then
   fi
 fi
 
-ECOMPILE="`echo $COMPILE | subst_args ${FILES[@]}`"
-EEXECUTE="`echo $EXECUTE | subst_args ${FILES[@]}`"
+ECOMPILE="$(subst_args "$COMPILE" "${FILES[@]}" NULL NULL NULL NULL NULL)"
+EEXECUTE="$(subst_args "$EXECUTE" "${FILES[@]}" NULL NULL NULL NULL NULL)"
 
 if [ "$DRY" == 'true' ]; then
   echo '$LANG    ' $LANG
@@ -112,18 +134,17 @@ if [ "$DRY" == 'true' ]; then
   echo '$EEXECUTE' $EEXECUTE
 
   echo '(set -o pipefail &&' $ECOMPILE '2>&1 | head -40)' "\\"
-  echo "  " '&& timeout --signal KILL 5 bash -c' \" "$EEXECUTE" \" '< input'
+  echo "  " '&& timeout --signal KILL 5 bash -c' \" "$EEXECUTE" \"
   exit
 fi
 
 # do-while
 (set -o pipefail && $ECOMPILE 2>&1 | head -40) \
-  && timeout -s KILL 5 bash -c "$EEXECUTE" < input
+  && timeout -s KILL 5 bash -c "$EEXECUTE"
+# FIXME shouldn't it be watching for $FILES only??
 while inotifywait -e modify -e move -r .; do
   clear;
   (set -o pipefail && $ECOMPILE 2>&1 | head -40) \
-    && timeout -s KILL 5 bash -c "$EEXECUTE" < input
+    && timeout -s KILL 5 bash -c "$EEXECUTE"
   # 'timeout' in some systems does not support long option (--signal)
 done
-
-#FIXME why 'input' is hardcoded?
