@@ -78,6 +78,8 @@ EXECUTE=''
 FILES=()
 DRY='false'
 AUTO='false'
+HEIGHT=''
+PAGER='head'
 
 while [[ $# -gt 0 ]]; do
   case $1 in
@@ -96,6 +98,20 @@ while [[ $# -gt 0 ]]; do
     -a|--auto)
       AUTO='true'
       shift ;;
+    -h|--head)
+      PAGER='head'
+      if [[ "$2" =~ '^[0-9]+$' ]]; then
+        HEIGHT=$2
+        shift
+      fi
+      shift ;;
+    -t|--tail)
+      PAGER='tail'
+      if [[ "$2" =~ '^[0-9]+$' ]]; then
+        HEIGHT=$2
+        shift
+      fi
+      shift ;;
     -*|--*)
       echo "unknown option; '$1' ignoring... "
       shift; shift ;;
@@ -104,6 +120,10 @@ while [[ $# -gt 0 ]]; do
       shift ;;
   esac
 done
+
+if [ -n "$HEIGHT" ] && [ "$HEIGHT" -eq 0 ]; then
+	HEIGHT=''
+fi
 
 if [ "$AUTO" == 'true' ]; then
     if [ -z "$LANG" ]; then
@@ -138,13 +158,16 @@ if [ "$DRY" == 'true' ]; then
   exit
 fi
 
+# FIXME compiler's warning may overspill the screen
+runit() {
+  # 'timeout' in some systems does not support long option (--signal)
+  (set -o pipefail && $ECOMPILE 2>&1 | head -${HEIGHT:-$((`tput lines`-5))} ) \
+    && timeout -s KILL 5 bash -c "$EEXECUTE" | $PAGER -${HEIGHT:-$((`tput lines`-5))}
+}
+
 # do-while
-(set -o pipefail && $ECOMPILE 2>&1 | head -40) \
-  && timeout -s KILL 5 bash -c "$EEXECUTE"
+runit
 # FIXME shouldn't it be watching for $FILES only??
 while inotifywait -e modify -e move -r .; do
-  clear;
-  (set -o pipefail && $ECOMPILE 2>&1 | head -40) \
-    && timeout -s KILL 5 bash -c "$EEXECUTE"
-  # 'timeout' in some systems does not support long option (--signal)
+  clear; runit
 done
