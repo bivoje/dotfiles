@@ -1,0 +1,76 @@
+#!/bin/bash
+
+VERSION_TEXT='pavlov v0.1'
+#WATCHDOG_WEBHOOK='' # externally set
+
+USAGE_TEXT='
+# Usage
+When command ends, report the return status with a terminal bell.
+Terminal emulators like wezterm can pick this info up (as an watchdog) to notify the user.
+
+## like sudo/strace/xargs (args given)
+pavlov command to execute
+$ cmd0 | pavlov cmd1 | pavlov cmd2
+NOTIF: SUCC cmd1
+NOTIF: FAIL cmd2
+
+## with piped message (no args, piped)
+$ command to execute | pavlov
+NOTIF: SUCC piped message
+
+## with custom message (no args, piped)
+$ (cmd1; echo $? "msg1" | pavlov) | (cmd2 ; echo $? "msg2" | pavlov)
+NOTIF: piped msg1
+NOTIF: piped msg2
+
+## print version (no args, no pipe)
+pavlov
+'
+
+notify() {
+	printf "NOTIF: $1" >&2
+	sleep 0.5
+
+	case "$WATCHDOG_DIRECT" in
+		""|n|N|no|NO|No|never|Never|NEVER|f|F|false|False|FALSE)
+			printf "\a" >&2 ;;
+		*)
+			curl \
+				-i -X POST \
+				-H 'Accept: application/json' \
+				-H 'Content-Type:application/json' \
+				--data "{\"content\": \"$1\"}" \
+				$WATCHDOG_WEBHOOK \
+			>/dev/null 2>&1 ;;
+		# FIXME what if WEBHOOK_URL is wrong or server errors?
+	esac
+}
+
+# https://stackoverflow.com/a/6482403
+# if no args
+if [ $# -ne 0 ]; then
+	$@
+	RET=$?
+
+	if [ $RET -eq 0 ]; then
+		SUCC="SUCC"
+	else
+		SUCC="FAIL"
+	fi
+
+	# https://unix.stackexchange.com/a/197794
+	notify "$SUCC $*\n"
+	exit $RET
+fi
+
+# https://stackoverflow.com/a/911213
+# if piped
+if ! [ -t 0 ]; then
+	message=`tail -1`
+
+	notify "FINI $message\n"
+	exit 0
+fi
+
+printf "$VERSION_TEXT\n"
+exit 0

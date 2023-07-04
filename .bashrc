@@ -178,3 +178,9 @@ bind '"\eOC":forward-word'
 
 # prevent CTRL-S to suspend terminal
 stty -ixon
+
+# audible bell sends \a (ascii bell) to the terminal (e.g. tput bel)
+# visible bell supposed to flash the entire screen (e.g. tput flash), but does not work in all terminals
+# avoid using audible bell, since I usually use audible bells to generate notifications in terminal ends
+# (for tasks finished, e.g. `time-consumming-job; printf \\a` then the terminal sends a message to discord webhook)
+bind 'set bell-style visible'
