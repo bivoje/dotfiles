@@ -1,0 +1,2 @@
+# for rootless docker
+export DOCKER_HOST=unix:///run/user/$(id -u $USER)/docker.sock
