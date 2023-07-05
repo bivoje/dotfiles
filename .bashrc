@@ -100,6 +100,13 @@ alias ll='ls -alF'
 alias la='ls -A'
 alias l='ls -CF'
 
+# QoL options for ed editor
+if command -v rlwrap &>/dev/null; then
+	alias ed='rlwrap ed -p "* " -v'
+else
+	alias ed='ed -p "* " -v'
+fi
+
 # report average/maximum memory usage https://superuser.com/a/1169636
 # make it report more verbosely with -v flag. https://stackoverflow.com/a/46874737
 if which time &>/dev/null; then
