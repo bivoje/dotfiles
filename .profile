@@ -66,8 +66,16 @@ export GPUTOP_RSA_ID=~/.ssh/shepherd_id_rsa
 # alternatively we can set 'alias clf "clf --color"' in bashrc
 export CLF_COLOR=1
 
+# colored GCC warnings and errors
+export GCC_COLORS='error=01;31:warning=01;35:note=01;36:caret=01;32:locus=01:quote=01'
+
 # disable other users to 'write' to my terminal
 mesg n 2> /dev/null || true
+
+if [ -f ~/.profile_sensitive]; then
+	# contains api keys, machine specific settings
+	source ~/.profile_sensitive
+fi
 
 # auto tmux
 # https://unix.stackexchange.com/a/113768

@@ -312,6 +312,10 @@ set wildmenu
 " redraw screen once after the macro execution is completeted
 set lazyredraw
 
+" let vim use visual bell (flash) instead of audible bell (\a)
+" since i'd like to catch audible bell for job-done-notification
+set vb
+
 " help cmd context
 " :h :r         ex command (command starting with a colon)
 " :h r          normal mode

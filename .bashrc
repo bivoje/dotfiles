@@ -95,9 +95,6 @@ if [ -x /usr/bin/dircolors ]; then
     alias egrep='egrep --color=auto'
 fi
 
-# colored GCC warnings and errors
-export GCC_COLORS='error=01;31:warning=01;35:note=01;36:caret=01;32:locus=01:quote=01'
-
 # some more ls aliases
 alias ll='ls -alF'
 alias la='ls -A'
@@ -181,3 +178,9 @@ bind '"\eOC":forward-word'
 
 # prevent CTRL-S to suspend terminal
 stty -ixon
+
+# audible bell sends \a (ascii bell) to the terminal (e.g. tput bel)
+# visible bell supposed to flash the entire screen (e.g. tput flash), but does not work in all terminals
+# avoid using audible bell, since I usually use audible bells to generate notifications in terminal ends
+# (for tasks finished, e.g. `time-consumming-job; printf \\a` then the terminal sends a message to discord webhook)
+bind 'set bell-style visible'
