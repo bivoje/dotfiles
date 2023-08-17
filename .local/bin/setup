@@ -9,6 +9,10 @@
 # bash directory stack
 # https://www.gnu.org/software/bash/manual/html_node/Directory-Stack-Builtins.html
 
+# install apt package locally
+# https://askubuntu.com/a/1023248
+# https://stackoverflow.com/a/41428445
+
 MESSAGE() {
   echo -e "\x1b[33m:: SETUP:" $@ "\x1b[0m"
 }
@@ -172,6 +176,18 @@ check_package_libevent() {
   # https://www.baeldung.com/linux/check-shared-library-installed
   [ -e $HOME/.local/lib/libevent.so ]
 }
+
+l_packs+=(dust)
+linstall_package_dust() {(set -e
+	wget https://github.com/bootandy/dust/releases/download/v0.8.5/dust-v0.8.5-i686-unknown-linux-musl.tar.gz
+	# TODO
+)}
+
+l_packs+=(starship)
+linstall_package_dust() {(set -e
+	curl -sS https://starship.rs/install.sh | sh
+	echo 'eval "$(starship init bash)"' >> ~/.bashrc
+)}
 
 l_packs+=(ncurses)
 linstall_package_ncurses() {(set -e
