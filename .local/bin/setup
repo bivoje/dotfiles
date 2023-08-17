@@ -268,14 +268,16 @@ linstall_package_tldr() {(set -e
 
 l_packs+=(lazygit)
 linstall_package_lazygit() {(set -e
-    LAZYGIT_VERSION=$(wget -q -O- "https://api.github.com/repos/jesseduffield/lazygit/releases/latest" | sed -n 's/.*"tag_name": "v\([^"]+\)".*/\1/p')
+    LAZYGIT_VERSION=$(wget -q -O- "https://api.github.com/repos/jesseduffield/lazygit/releases/latest" | sed -n 's/.*"tag_name": "v\([^"]\+\)".*/\1/p')
+    echo $LAZYGIT_VERSION
     wget -O lazygit.tar.gz "https://github.com/jesseduffield/lazygit/releases/latest/download/lazygit_${LAZYGIT_VERSION}_Linux_x86_64.tar.gz"
-    tar --remove-files -- -xf lazygit.tar.gz lazygit
+    tar -xf lazygit.tar.gz
     mv lazygit $HOME/.local/bin
+    rm lazygit.tar.gz
 )}
 
 l_packs+=(dash)
-linstall_package_lazygit() {(set -e
+linstall_package_dash() {(set -e
     DASH_VERSION="dash-static-0.5.11.5_musl-1.2.3" # TODO dynamically fetch?
     wget -O dash.tar.gz "https://github.com/amuramatsu/dash-static/releases/download/${DASH_VERSION}/${DASH_VERSION}.tar.gz"
     tar -xf dash.tar.gz
