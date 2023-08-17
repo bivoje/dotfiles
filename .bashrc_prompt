@@ -1,0 +1,143 @@
+#!/usr/bin/env bash
+
+#######################################################
+# FULL COLOR MULTILINE COMMAND PROMPT
+#######################################################
+
+# WARNING: overwrites DEBUG trap of bash to get command execution time
+# Source it from bashrc file to use this
+# Based on color Extreme Ultimate bashrc https://sourceforge.net/projects/ultimate-bashrc/
+# Modified displays for minialistic & low overhead
+# Command execution time display is borrowed from starship init script for bash
+
+function __setprompt
+{
+	local LAST_COMMAND=$? # Must come first!
+
+	# Define colors
+	local LIGHTGRAY="\033[0;37m"
+	local WHITE="\033[1;37m"
+	local BLACK="\033[0;30m"
+	local DARKGRAY="\033[1;30m"
+	local RED="\033[0;31m"
+	local LIGHTRED="\033[1;31m"
+	local GREEN="\033[0;32m"
+	local LIGHTGREEN="\033[1;32m"
+	local BROWN="\033[0;33m"
+	local YELLOW="\033[1;33m"
+	local BLUE="\033[0;34m"
+	local LIGHTBLUE="\033[1;34m"
+	local MAGENTA="\033[0;35m"
+	local LIGHTMAGENTA="\033[1;35m"
+	local CYAN="\033[0;36m"
+	local LIGHTCYAN="\033[1;36m"
+	local NOCOLOR="\033[0m"
+
+	# Reset
+	PS1=
+
+	# Time
+	PS1+="\[${CYAN}\]\\t\[${DARKGRAY}\]"
+
+	# Shell
+	#PS1+="^\[${MAGENTA}\]\s \\v"
+	#PS1+="\[${DARKGRAY}\] "
+
+	# User and server
+	# Only if connected SSH, show the host
+	if [[ -n "$SSH_CLIENT" ]] || [[ -n "$SSH_TTY" ]]; then
+		PS1+="| \[${LIGHTGREEN}\]\u@\h\[${DARKGRAY}\]"
+	else
+		PS1+="| \[${LIGHTGREEN}\]\u\[${DARKGRAY}\]"
+	fi
+
+	# Current directory
+	PS1+=":\[${LIGHTBLUE}\]\w\[${DARKGRAY}\]"
+
+	# Total size of files in current directory
+	PS1+=" (\[${CYAN}\]$(/bin/ls -lAh | /bin/grep -m 1 total | /bin/sed 's/total //')\[${DARKGRAY}\]:"
+
+	# Number of files
+	PS1+="\[${CYAN}\]\$(/bin/ls -A -1 | /usr/bin/wc -l)\[${DARKGRAY}\])"
+
+	# GIT support:
+	if command -v git >/dev/null 2>&1; then
+		local BRANCH=`git branch 2> /dev/null | sed -e '/^[^*]/d' -e 's/* \(.*\)/\1/' -e 's/(HEAD detached at \(.*\))/\1/'`
+		if [ -n "${BRANCH}" ]; then
+			PS1+=" [\[${MAGENTA}\]${BRANCH}\[${DARKGRAY}\]]"
+		fi
+	fi
+
+	# Command execution time
+	if [ -n "$PROMPT_START_TIME" ]; then
+		local PROMPT_END_TIME=$(date +'%s')
+		local PROMPT_DURATION=$((PROMPT_END_TIME - PROMPT_START_TIME))
+		unset PROMPT_START_TIME
+
+		PS1+="\[${YELLOW}\]"
+		if [ $PROMPT_DURATION -ge 86400 ]; then
+			PS1+=" $((PROMPT_DURATION / 86400))d"
+			PROMPT_DURATION=$((PROMPT_DURATION % 86400))
+		fi
+		if [ $PROMPT_DURATION -ge 3600 ]; then
+			PS1+=" $((PROMPT_DURATION / 3600))h"
+			PROMPT_DURATION=$((PROMPT_DURATION % 3600))
+		fi
+		if [ $PROMPT_DURATION -ge 60 ]; then
+			PS1+=" $((PROMPT_DURATION / 60))m"
+			PROMPT_DURATION=$((PROMPT_DURATION % 60))
+		fi
+		if [ $PROMPT_DURATION -ge 2 ]; then # only if it took >= 2s
+			PS1+=" $((PROMPT_DURATION))s"
+		fi
+		PS1+="\[${DARKGRAY}\]"
+	fi
+	PROMPT_PREEXEC_READY=true # Signal that we can safely restart the timer
+
+	# Skip to the next line
+	PS1+="\n"
+
+	PS1+="\\# " # relative history number, use \! for absolute
+
+	# Show error exit code if there is one
+	if [[ $LAST_COMMAND != 0 ]]; then
+		# PS1="\[${RED}\](\[${LIGHTRED}\]ERROR\[${RED}\])-(\[${LIGHTRED}\]Exit Code \[${WHITE}\]${LAST_COMMAND}\[${RED}\])-(\[${LIGHTRED}\]"
+		PS1+="\[${LIGHTRED}\]${LAST_COMMAND}\[${DARKGRAY}\]:\[${LIGHTRED}\]\\$\[${NOCOLOR}\] "
+	else
+		PS1+="\[${GREEN}\]\\$\[${NOCOLOR}\] "
+	fi
+
+	# PS2 is used to continue a command using the \ character
+	PS2="\[${DARKGRAY}\]>\[${NOCOLOR}\] "
+
+	# PS3 is used to enter a number choice in a script
+	PS3='Please enter a number from above list: '
+
+	# PS4 is used for tracing a script in debug mode
+	PS4='\[${DARKGRAY}\]+\[${NOCOLOR}\] '
+
+	# If we are in tmux, change the window name to our current path
+	# If tmux is installed
+	if command -v tmux>/dev/null; then
+		# If we are in tmux
+		if [ ! -z "$TMUX" ]; then
+			tmux rename-window ${PWD//*\//};
+		fi
+	fi
+}
+
+# export PROMPT_COMMAND="history -a; history -c; history -r; __setprompt" # Breaks error trapping
+export PROMPT_COMMAND="__setprompt"
+
+# Will be run before every command (even ones in pipes)
+prompt_preexec() {
+	# Save previous command's last argument, otherwise it will be set to prompt_preexec
+	local PREV_LAST_ARG="$1"
+	if [ "$PROMPT_PREEXEC_READY" = "true" ]; then
+		PROMPT_PREEXEC_READY=false
+		PROMPT_START_TIME=$(date +'%s')
+	fi
+	: "$PREV_LAST_ARG"
+}
+
+trap 'prompt_preexec "$_"' DEBUG

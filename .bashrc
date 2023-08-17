@@ -67,21 +67,20 @@ if [ -n "$force_color_prompt" ]; then
     fi
 fi
 
-if [ "$color_prompt" = yes ]; then
-    PS1='${debian_chroot:+($debian_chroot)}\[\033[01;32m\]\u@\h\[\033[00m\]:\[\033[01;34m\]\w\[\033[00m\]\$ '
+if [[ -x "$(command -v starship)" ]]; then
+	# load starship if installed
+	eval "$(starship init bash)"
+
+elif [ "$color_prompt" = yes ]; then
+	if [[ -x "$(command -v grep)" ]] && [[ -x "$(command -v sed)" ]] && [[ -x "$(command -v date)" ]]; then
+	. ~/.bashrc_prompt
+	else
+		PS1='${debian_chroot:+($debian_chroot)}\[\033[01;32m\]\u@\h\[\033[00m\]:\[\033[01;34m\]\w\[\033[00m\]\$ '
+	fi
 else
-    PS1='${debian_chroot:+($debian_chroot)}\u@\h:\w\$ '
+	PS1='${debian_chroot:+($debian_chroot)}\u@\h:\w\$ '
 fi
 unset color_prompt force_color_prompt
-
-# If this is an xterm set the title to user@host:dir
-case "$TERM" in
-xterm*|rxvt*)
-    PS1="\[\e]0;${debian_chroot:+($debian_chroot)}\u@\h: \w\a\]$PS1"
-    ;;
-*)
-    ;;
-esac
 
 # enable color support of ls and also add handy aliases
 if [ -x /usr/bin/dircolors ]; then
@@ -191,3 +190,122 @@ stty -ixon
 # avoid using audible bell, since I usually use audible bells to generate notifications in terminal ends
 # (for tasks finished, e.g. `time-consumming-job; printf \\a` then the terminal sends a message to discord webhook)
 bind 'set bell-style visible'
+
+
+# Handy function definitions from Extreme Ultimate bashrc https://sourceforge.net/projects/ultimate-bashrc/
+
+# Search process names to kill
+# https://unix.stackexchange.com/questions/443472/alias-for-killing-all-processes-of-a-grep-hit
+function smash() {
+	local T_PROC=$1
+	local T_PIDS=($(pgrep -i "$T_PROC"))
+	if [[ "${#T_PIDS[@]}" -ge 1 ]]; then
+		echo "Found the following processes:"
+		for pid in "${T_PIDS[@]}"; do
+			echo "$pid" "$(\ps -p "$pid" -o comm= | awk -F'/' '{print $NF}')" | column -t
+		done
+		if ask "Kill them?" N; then
+			for pid in "${T_PIDS[@]}"; do
+				echo "Killing ${pid}..."
+				( kill -15 "$pid" ) && continue
+				sleep 2
+				( kill -2 "$pid" ) && continue
+				sleep 2
+				( kill -1 "$pid" ) && continue
+				echo "Cannot terminate" >&2 && return 1
+			done
+		else
+			echo "Exiting..."
+			return 0
+		fi
+	else
+		echo "No processes found for: $1" >&2 && return 1
+	fi
+}
+
+# See what command you are using the most (this parses the history command)
+function mostused() {
+	history \
+	| awk ' { a[$4]++ } END { for ( i in a ) print a[i], i | "sort -rn | head -n10"}' \
+	| awk '$1 > max{ max=$1} { bar=""; i=s=10*$1/max;while(i-->0)bar=bar"#"; printf "%25s %15d %s %s", $2, $1,bar, "\n"; }'
+}
+
+# Make a string safe to be used in regular expressions
+function regexformat() {
+	echo -n "$(printf '%s' "${1}" | sed 's/[.[\(\)\ *^$+?{|]/\\&/g')"
+}
+
+# Commands pushd and popd now output the directory stack after modification
+# and also prevents duplicate directories being added to the directory stack
+pushd() {
+	builtin pushd "${@}" > /dev/null
+	echo "Directory Stack:"
+	dirs -v
+}
+
+popd() {
+	builtin popd "${@}" > /dev/null
+	echo "Directory Stack:"
+	dirs -v
+}
+
+grepr() {
+	grep -iIHrn --color=always "${@}" . | $PAGER -r
+}
+
+# Print a list of colors
+function colors() {
+	local fgc bgc vals seq0
+
+	printf "Color escapes are %s\n" '\e[${value};...;${value}m'
+	printf "Values 30..37 are \e[33mforeground colors\e[m\n"
+	printf "Values 40..47 are \e[43mbackground colors\e[m\n"
+	printf "Value  1 gives a  \e[1mbold-faced look\e[m\n\n"
+
+	# foreground colors
+	for fgc in {30..37}; do
+		# background colors
+		for bgc in {40..47}; do
+			fgc=${fgc#37} # white
+			bgc=${bgc#40} # black
+
+			vals="${fgc:+$fgc;}${bgc}"
+			vals=${vals%%;}
+
+			seq0="${vals:+\e[${vals}m}"
+			printf "  %-9s" "${seq0:-(default)}"
+			printf " ${seq0}TEXT\e[m"
+			printf " \e[${vals:+${vals+$vals;}}1mBOLD\e[m"
+		done
+		echo; echo
+	done
+}
+
+# Print a list of 256 colors
+function colors256() {
+	for j in {0..15} ; do
+		for i in {0..15} ; do
+			printf "\x1b[38;5;%dm%03d " $((16*j+i)) $((16*j+i))
+		done
+		printf "\n"
+	done
+}
+
+# Test for 24bit true color in the terminal
+function colors24bit() {
+	echo 'If the gradients are smooth, you are displaying 24bit true color.'
+	awk 'BEGIN{
+		s='1234567890';
+		s=s s s s s s s s s s s s s s s s s s s s s s s;
+		for (colnum = 0; colnum<256; colnum++) {
+			r = 255-(colnum*255/255);
+			g = (colnum*510/255);
+			b = (colnum*255/255);
+			if (g>255) g = 510-g;
+			printf "\033[48;2;%d;%d;%dm", r,g,b;
+			printf "\033[38;2;%d;%d;%dm", 255-r,255-g,255-b;
+			printf "%s\033[0m", substr(s,colnum+1,1);
+		}
+		printf "\n";
+	}'
+}
