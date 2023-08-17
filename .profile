@@ -84,6 +84,6 @@ if which tmux 2>&1 > /dev/null && [ -n "$PS1" ] && [ -z "$TMUX" ]; then
     *screen*) ;;
     *tmux*) ;;
     #*) exec tmux
-    *) tmux list-sessions && tmux -2 attach || tmux -2
+    *) tmux list-sessions &>/dev/null && tmux -2 attach || tmux -2
   esac
 fi
