@@ -14,3 +14,5 @@
 	meta = blue
 [ui]
 	color = auto
+[mergetool "vimdiff"]
+	layout = LOCAL,BASE,REMOTE / MERGED + REMOTE,BASE + LOCAL,BASE
