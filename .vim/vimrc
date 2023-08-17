@@ -175,7 +175,7 @@ inoremap <Left> <NOP>
 
 " use colorscheme ron
 try
-  colo ron
+  colo seoul256
 catch
 endtry
 
@@ -359,12 +359,6 @@ else
   cmap <f28> <nop>
   cmap <f29> <nop>
   "FIXME exit insert mode after pasting when invoked during normal mode?
-endif
-
-" use my-defined color scheme for vimdiff use
-" the default for vimdiff is no less than an eyebleach
-if &diff
-    colorscheme diffcolors
 endif
 
 "vim-plug section
