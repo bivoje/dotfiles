@@ -55,8 +55,9 @@ Options:
 	--mode <mode>	read sections below for more information.
 
 	--skip-unreachable
-			ignore hosts that are not reachable;
-			by default, it stops if any found, before execution.
+	--no-skip-unreachable
+			ignore hosts that are not reachable (default);
+			if off, program stops if any found, before execution.
 
 	--sequential	deal with each host one by one;
 			disabling the default parallel behavior.
@@ -133,7 +134,7 @@ OPT_HOSTFILE=''
 OPT_IDENTFILE=''
 OPT_MODE='cmd'
 OPT_USERNAME="$USER"
-OPT_UNRCH='error'
+OPT_UNRCH='skip'
 OPT_SEQUENTIAL=''
 OPT_COLOR='auto'
 OPT_HOSTS=()
@@ -167,6 +168,9 @@ while [[ $# -gt 0 ]]; do
 			shift; shift ;;
 		--skip-unreachable)
 			OPT_UNRCH='skip'
+			shift ;;
+		--no-skip-unreachable)
+			OPT_UNRCH='error'
 			shift ;;
 		--sequential)
 			OPT_SEQUENTIAL='yes'
