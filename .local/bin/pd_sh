@@ -38,9 +38,10 @@ Options:
 	--dry-run	do nothing irreducible.
 
 	-s <passwd>	execute command in privileged mode;
-	--sudo <passwd>	be careful to not leave password in the shell history.
+			be careful to not leave password in the shell history.
 			use this feature with caution since it will may leave
 			the passwd in your shell's history.
+	--sudo		similar to '-s' option but prompts for the password.
 
 	-h <file>	read hostnames from given file;
 	--host <file>	any whitespace seperates hostname.
@@ -85,19 +86,19 @@ GET mode:
 
 Examples:
 	# simple self-introduction
-	\$ $0 213.144.23.5 213.144.23.6 -i .ssh/id_rsa -- hostname
+	\$ $PROG 213.144.23.5 213.144.23.6 -i .ssh/id_rsa -- hostname
 	> [213.144.23.5] remote1
 	> [213.144.23.6] remote2
 
 	# if you set up /etc/hosts, you can use hostnames rightaway
 	# querying users having home directory
-	\$ $0 remote1 remote2 -i .ssh/id_rsa -- 'ls /home | xargs'
+	\$ $PROG remote1 remote2 -i .ssh/id_rsa -- 'ls /home | xargs'
 	> [remote1] john_romeo jd.carmack
 	> [remote2] wozniak ritchie stallman
 
 	# if you set up .ssh/ you can omit -i option
 	# querying remote shell variable
-	\$ $0 remote1 remote2 -- 'echo \$TIME_STYLE; ls -l'
+	\$ $PROG remote1 remote2 -- 'echo \$TIME_STYLE; ls -l'
 	> [remote2] long-iso
 	> [remote2] -rwxr-xr-x 1 admin admin  319 2023-03-26 07:22 create_user
 	> [remote1] iso
@@ -113,7 +114,7 @@ Examples:
 	> remote2 remote3
 	>   remote4
 	> remote 5
-	\$ $0 -h hosts remote1 -s 'admin_passwd' -- cat /root/secret
+	\$ $PROG -h hosts remote1 -s 'admin_passwd' -- cat /root/secret
 	> [remote5] a meal.
 	> [remote2] and beauty,
 	> [remote4] of tea after
@@ -121,12 +122,13 @@ Examples:
 	> [remote3] take a cup
 
 	# put files on remote hosts
-	\$ $0 remote1 remote2 --mode put -- admin.sh deluser.sh config.yaml .ssh/key.pub /home/admin/moved/
+	\$ $PROG remote1 remote2 --mode put -- admin.sh deluser.sh config.yaml .ssh/key.pub /home/admin/moved/
 	> [remote1] sending to remote1 finished
 	> [remote2] sending to remote2 finished
 "
 }
 
+PROG=$(basename "$0")
 OPT_VERBOSE=''
 OPT_DRY=''
 OPT_SUDO=''
@@ -142,7 +144,7 @@ OPT_HOSTS=()
 while [[ $# -gt 0 ]]; do
 	case $1 in
 		--help)
-			usage
+			usage "$PROG"
 			exit 0
 			;;
 		-v|--verbose)
@@ -151,9 +153,15 @@ while [[ $# -gt 0 ]]; do
 		-n|--dry-run)
 			OPT_DRY='yes'
 			shift ;;
-		-s|--sudo)
+		-s)
 			OPT_SUDO="$2"
 			shift; shift ;;
+		--sudo)
+			# directly read from / write to the terminal device. ignoring pipeline input
+			# can't do password remembering like sudo does
+			read -s -p "[$PROG] password for $USER: " OPT_SUDO </dev/tty >/dev/tty
+			printf "\n" # -s option of 'read' consumes users' newline
+			shift ;;
 		-h|--hostfile)
 			OPT_HOSTFILE="$2"
 			shift; shift ;;
