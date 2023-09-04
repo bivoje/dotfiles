@@ -194,6 +194,54 @@ bind 'set bell-style visible'
 
 # Handy function definitions from Extreme Ultimate bashrc https://sourceforge.net/projects/ultimate-bashrc/
 
+# Confirm/Ask a question - See 'killps' for example of use
+# General-purpose function to ask Yes/No questions in Bash,
+# either with or without a default answer.
+# It keeps repeating the question until it gets a valid answer.
+# Link: https://gist.github.com/davejamesmiller/1965569
+# Example Usage:
+#   if ask "Do you want to do such-and-such?"; then
+# Default to Yes if the user presses enter without giving an answer:
+#   if ask "Do you want to do such-and-such?" Y; then
+# Default to No if the user presses enter without giving an answer:
+#   if ask "Do you want to do such-and-such?" N; then
+# Or if you prefer the shorter version:
+#   ask "Do you want to do such-and-such?" && said_yes
+#   ask "Do you want to do such-and-such?" || said_no
+function ask() {
+	local prompt default reply
+
+	if [[ ${2:-} = 'Y' ]]; then
+		prompt='Y/n'
+		default='Y'
+	elif [[ ${2:-} = 'N' ]]; then
+		prompt='y/N'
+		default='N'
+	else
+		prompt='y/n'
+		default=''
+	fi
+
+	while true; do
+		# Ask the question (not using "read -p" as it uses stderr not stdout)
+		echo -ne "$1 [$prompt] "
+
+		# Read the answer (use /dev/tty in case stdin is redirected from somewhere else)
+		read -r reply </dev/tty
+
+		# Default?
+		if [[ -z $reply ]]; then
+			reply=$default
+		fi
+
+		# Check if the reply is valid
+		case "$reply" in
+			Y*|y*) return 0 ;;
+			N*|n*) return 1 ;;
+		esac
+	done
+}
+
 # Search process names to kill
 # https://unix.stackexchange.com/questions/443472/alias-for-killing-all-processes-of-a-grep-hit
 function smash() {
@@ -308,4 +356,73 @@ function colors24bit() {
 		}
 		printf "\n";
 	}'
+}
+
+function merge_prepare_file() {
+	local SUFFIX="$1"
+	local commit="$2"
+	local path="$3"
+
+	file="${path%.*}"
+	ext="${path##*.}"
+	[ "$path" = "$ext" ] && ext='' || ext=".${ext}"
+	local newpath="${file}_${SUFFIX}${ext}"
+
+	if [ -n "$commit" ]; then
+		# https://stackoverflow.com/a/610315
+		# https://stackoverflow.com/a/39923104
+		# https://stackoverflow.com/a/957078
+		mkdir -p "$(dirname "$newpath")" # FIXME how to delete created dir? idk...
+		git show "${commit}:$(git rev-parse --show-prefix)${path}" > "$newpath"
+	elif [ -e "$path" ]; then
+		cp "$path" "$newpath"
+	fi
+
+	printf "$newpath"
+}
+
+function merge() {
+	# argument parsing
+	# commit/branch name should not contain ':'
+	# you can omit branchname, but to omit filename you should put suffix colon.
+	local loc_commit="${1%%:*}" # remove longest suffix of pattern ':*'
+	[ "$loc_commit" = "$1" ] && loc_commit=''
+	local loc_path="${1#*:}" # remove shortest prefix of pattern '*:'
+	local bas_commit="${2%%:*}"
+	[ "$bas_commit" = "$2" ] && bas_commit=''
+	local bas_path="${2#*:}"
+	local rem_commit="${3%%:*}"
+	[ "$rem_commit" = "$3" ] && rem_commit=''
+	local rem_path="${3#*:}"
+	local new_path="$4"
+
+	# fill in default filepath
+	local default_path=''
+	if [ -n "$bas_path" ]; then
+		default_path="$bas_path"
+	elif [ -n "$loc_path" ] && [ -z "$rem_path" ]; then
+		default_path="$loc_path"
+	elif [ -z "$loc_path" ] && [ -n "$rem_path" ]; then
+		default_path="$loc_path"
+	else
+		printf "can't resolve filenames for merge!\n" >&2
+		return 1
+	fi
+	: ${loc_path:=$default_path}
+	: ${bas_path:=$default_path}
+	: ${rem_path:=$default_path}
+	: ${new_path:=$default_path}
+	# https://www.debuntu.org/how-to-bash-parameter-expansion-and-default-values/
+
+	loc=`merge_prepare_file "LOCAL"  "$loc_commit" "$loc_path"`
+	bas=`merge_prepare_file "BASE"   "$bas_commit" "$bas_path"`
+	rem=`merge_prepare_file "REMOTE" "$rem_commit" "$rem_path"`
+
+	if ! [ -e "$new_path" ]; then
+		git merge-file "$loc" "$bas" "$rem" --diff3 -pq > "$new_path"
+	fi
+
+	vim -f --cmd "set diff" -c "set hidden diffopt-=hiddenoff | echo | leftabove split | leftabove vertical split | 1b | wincmd l | leftabove vertical split | 2b | wincmd l | 3b | wincmd j | 4b | execute 'windo diffthis'" "$loc" "$bas" "$rem" "$new_path"
+
+	rm -rf "$loc" "$bas" "$rem"
 }
