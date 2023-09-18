@@ -18,7 +18,9 @@
 default_compile() {
   case "$1" in
     rust)
-      echo 'rustc --color=always --edition=2021 $1 -o ps' ;;
+	echo 'rustc --color=always --edition=2021 $1 -o ps' ;;
+    cpp)
+	echo 'g++ -fdiagnostics-color=always $1 -o ps' ;;
   esac
 }
 
@@ -40,6 +42,8 @@ default_execute() {
 				>&2 \
 			)'
 		;;
+	*)
+		echo './ps < $INPUT' ;;
   esac
 }
 
@@ -80,6 +84,7 @@ DRY='false'
 AUTO='false'
 HEIGHT=''
 PAGER='head'
+TIMEOUT='5'
 
 while [[ $# -gt 0 ]]; do
   case $1 in
@@ -112,6 +117,9 @@ while [[ $# -gt 0 ]]; do
         shift
       fi
       shift ;;
+    --timeout)
+	TIMEOUT="$2"
+	shift; shift ;;
     -*|--*)
       echo "unknown option; '$1' ignoring... "
       shift; shift ;;
@@ -154,7 +162,7 @@ if [ "$DRY" == 'true' ]; then
   echo '$EEXECUTE' $EEXECUTE
 
   echo '(set -o pipefail &&' $ECOMPILE '2>&1 | head -40)' "\\"
-  echo "  " '&& timeout --signal KILL 5 bash -c' \" "$EEXECUTE" \"
+  echo "  " "&& timeout --signal KILL $TIMEOUT bash -c" \" "$EEXECUTE" \"
   exit
 fi
 
@@ -162,7 +170,7 @@ fi
 runit() {
   # 'timeout' in some systems does not support long option (--signal)
   (set -o pipefail && $ECOMPILE 2>&1 | $PAGER -${HEIGHT:-$((`tput lines`-5))} ) \
-    && timeout -s KILL 5 bash -c "$EEXECUTE" | $PAGER -${HEIGHT:-$((`tput lines`-5))}
+    && timeout -s KILL $TIMEOUT bash -c "$EEXECUTE" | $PAGER -${HEIGHT:-$((`tput lines`-5))}
 }
 
 # do-while

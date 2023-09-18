@@ -6,6 +6,7 @@
 [alias]
 	ll = log --graph --oneline --all --decorate
 	st = status
+	amend = commit --amend -C HEAD
 [merge]
 	tool = vimdiff
 [core]
