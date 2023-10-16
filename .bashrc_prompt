@@ -125,8 +125,10 @@ function __setprompt
 	fi
 }
 
-# export PROMPT_COMMAND="history -a; history -c; history -r; __setprompt" # Breaks error trapping
-export PROMPT_COMMAND="__setprompt"
+# PROMPT_COMMAND="history -a; history -c; history -r; __setprompt" # Breaks error trapping
+# PROMPT_COMMAND gets executed before showing PS1
+# HISTFILESIZE not considered (assume infinite HISTFILESIZE)
+PROMPT_COMMAND="$PROMPT_COMMAND; __setprompt"
 
 # Will be run before every command (even ones in pipes)
 prompt_preexec() {

@@ -72,6 +72,9 @@ export GCC_COLORS='error=01;31:warning=01;35:note=01;36:caret=01;32:locus=01:quo
 # disable other users to 'write' to my terminal
 mesg n 2> /dev/null || true
 
+# some systems have time-based logout, remove the time limit
+export TMOUT=
+
 if [ -f ~/.profile_sensitive ]; then
 	# contains api keys, machine specific settings
 	source ~/.profile_sensitive

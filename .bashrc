@@ -19,12 +19,24 @@ HISTCONTROL=ignoreboth #~ =ignoredups:ignorespace
 # append to the history file, don't overwrite it
 shopt -s histappend
 
-# for setting history length see HISTSIZE and HISTFILESIZE in bash(1)
-HISTSIZE=1000
-HISTFILESIZE=2000
+# infinite history!
+HISTSIZE=
+HISTFILESIZE=
+
+HISTIGNORE="clear:clear *:pwd:ls:his:his 1d:his 1w"
 
 # show timestamps using `history`
 HISTTIMEFORMAT='%F %T '
+
+SESSION_HISTFILE=~/.history/$(date +%Y%m%d_%H%M%S)
+
+# PROMPT_COMMAND gets executed before showing PS1
+PROMPT_COMMAND="history -a >(tee -a $HISTFILE >> $SESSION_HISTFILE)"
+
+alias his='allhistory ~/.history'
+
+# TODO write unified history viewer
+# TODO clean old history on login or logout (up to size limit)
 
 # NOTE
 # use `history -c` to clear history
@@ -73,7 +85,7 @@ if [[ -x "$(command -v starship)" ]]; then
 
 elif [ "$color_prompt" = yes ]; then
 	if [[ -x "$(command -v grep)" ]] && [[ -x "$(command -v sed)" ]] && [[ -x "$(command -v date)" ]]; then
-	. ~/.bashrc_prompt
+		. ~/.bashrc_prompt
 	else
 		PS1='${debian_chroot:+($debian_chroot)}\[\033[01;32m\]\u@\h\[\033[00m\]:\[\033[01;34m\]\w\[\033[00m\]\$ '
 	fi
@@ -111,6 +123,12 @@ fi
 if which time &>/dev/null; then
     alias time="`which time` -f 'real\t%E\nuser\t%U\nsys\t%S\namem\t%K\nmmem\t%M\n'"
 fi
+
+alias bat='batcat'
+alias bathelp='bat --plain --language=help'
+help() {
+    "$@" --help 2>&1 | bathelp
+}
 
 # Add an "alert" alias for long running commands.  Use like so:
 #   sleep 10; alert
@@ -173,9 +191,6 @@ es () { arg=${1:-.};
 # do `stty $STTY` to recover terminal setting
 # see https://stackoverflow.com/a/36718540
 STTY=`stty -g`
-
-# shepherd has time-based logout, remove the time limit
-export TMOUT=
 
 # for some reason, bash gets "^[[1;5D" while tmux gets "^[OD" when Ctrl-Left presed
 # bindings are not inherited, so put in here rather than .profile

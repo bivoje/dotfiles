@@ -1,0 +1,132 @@
+#!/bin/python3
+
+# %%
+from pathlib import Path
+from datetime import datetime
+
+class History:
+    def __init__(self, history, path):
+        self.history = history
+        self.path = path
+
+    def load(path):
+        launch_time = datetime.strptime(str(path.name), '%Y%m%d_%H%M%S')
+        with open(path) as f:
+            history = [(int(launch_time.timestamp()), '|LAUNCH|')]
+            timestamp = launch_time.timestamp()
+            for line in f.readlines():
+                if line.strip().startswith("#"):
+                    try:
+                        timestamp = int(line.strip()[1:].strip())
+                    except ValueError:
+                        timestamp = None # it's just a plain comment
+                    continue
+
+                if line.strip() == "": continue
+
+                history.append((timestamp, line))
+
+        history.append((timestamp, '|EXIT|'))
+        assert(all(t[0] is not None for t in history))
+        history.sort(key=lambda t: t[0])
+
+        return History(history, path)
+
+    def start_time(self):
+        assert(not self.is_empty())
+        return self.history[0][0]
+
+    def end_time(self):
+        assert(not self.is_empty())
+        return self.history[-1][0]
+
+    def __len__(self):
+        return len(self.history) - 2 # excluding the first 'LAUNCH'/'EXIT' entry
+
+    def is_empty(self):
+        return len(self) == 2
+
+# %%
+from heapq import *
+
+def max_parallel(hs):
+    queue = []
+    mxprl = 0
+    for history in sorted(hs, key=lambda h: h.start_time()):
+        start = history.start_time()
+        while queue and queue[0] < start: heappop(queue)
+        heappush(queue, history.end_time())
+        mxprl = max(mxprl, len(queue))
+    return mxprl
+
+def show_allhistory(hs, color=True):
+    hs = list(hs)
+    gen = merge(*list(map(lambda ih: ((t,ih[0],j,l) for j,(t,l) in enumerate(ih[1].history)), enumerate(hs))))
+    column_occupy = [None] * max_parallel(hs)
+
+    if color:
+        gray = '\033[38;5;8m'
+        yellow = '\033[1;33m'
+        reset = '\033[0m'
+    else:
+        gray = yellow = reset = ''
+
+    for t, i, j, l in gen:
+        #print(column_occupy, t, i, j, repr(l))
+        try:
+            colidx = column_occupy.index(i)
+        except ValueError:
+            colidx = column_occupy.index(None)
+            column_occupy[colidx] = i
+
+        if l == '|EXIT|':
+            column_occupy[colidx] = None
+            l = 'exit\n'
+
+        if l == '|LAUNCH|': # or l == '|EXIT|':
+            l = yellow + l + reset + '\n'
+
+        if l[-1] != '\n':
+            l = l + f' {gray}\\{reset}\n'
+
+        tabs = '\t\t'
+        print(f"{gray}{datetime.fromtimestamp(t)}{reset}\t{tabs*colidx}{gray}{j:3}{reset} {l}", end='')
+
+# %%
+import re
+from datetime import timedelta
+
+def run(argv):
+    histdir = Path(argv[1])
+
+    if len(argv) >= 3:
+        datefrom = argv[2].strip()
+        if not datefrom:
+            raise ValueError(f"empty second arg not allowed")
+
+        m = re.match(r"^(\d+w)?(\d+d)?(\d+h)?(\d+m)?(\d+s)?$", datefrom)
+        if m:
+            g = lambda i: int(m[i][:-1]) if m[i] else 0
+            td = timedelta(weeks=g(1), days=g(2), hours=g(3), minutes=g(4), seconds=g(5))
+            date_from = datetime.now() - td
+
+        elif re.match(r"^\d\d\d\d-\d\d-\d\d_\d\d-\d\d-\d\d$", datefrom):
+            date_from = datetime.strptime(datefrom, '%Y-%m-%d_%H-%M-%S')
+
+        else:
+            raise ValueError(f"unrecognized second arg '{argv[2]}'")
+
+    else:
+        date_from = datetime.fromtimestamp(0)
+
+    def launch_time(path):
+        try: return datetime.strptime(str(path.name), '%Y%m%d_%H%M%S')
+        except: return datetime.fromtimestamp(-1)
+    ps = (path for path in Path(histdir).glob("*") if date_from <= launch_time(path))
+    hs = filter(lambda h: not h.is_empty(), (History.load(path) for path in ps))
+
+    show_allhistory(hs)
+
+# %%
+import sys
+run(sys.argv)
