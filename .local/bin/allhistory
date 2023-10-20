@@ -97,6 +97,8 @@ import re
 from datetime import timedelta
 
 def run(argv):
+    if len(argv) < 2:
+        raise ValueError(f"first argument is required")
     histdir = Path(argv[1])
 
     if len(argv) >= 3:
@@ -129,4 +131,8 @@ def run(argv):
 
 # %%
 import sys
-run(sys.argv)
+try:
+    run(sys.argv)
+except Exception as e:
+    print(f"{Path(sys.argv[0]).name}: {e}", file=sys.stderr)
+    exit(1)

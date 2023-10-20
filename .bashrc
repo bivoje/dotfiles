@@ -33,7 +33,8 @@ SESSION_HISTFILE=~/.history/$(date +%Y%m%d_%H%M%S)
 # PROMPT_COMMAND gets executed before showing PS1
 PROMPT_COMMAND="history -a >(tee -a $HISTFILE >> $SESSION_HISTFILE)"
 
-alias his='allhistory ~/.history'
+#https://superuser.com/a/215313
+his() {( set -o pipefail; allhistory ~/.history $1 | less -FXR );}
 
 # TODO write unified history viewer
 # TODO clean old history on login or logout (up to size limit)
