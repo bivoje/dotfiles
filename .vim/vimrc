@@ -80,7 +80,8 @@ set hlsearch
 noremap <silent> <space> :noh<cr>
 
 " apply search while typing
-"set incsearch
+set incsearch
+" use CTRL-G / CTRL-T while incsearch to navigate!
 
 " case insensitive search
 " case sensitive only when search string includes upper case
@@ -170,12 +171,22 @@ inoremap <Left> <NOP>
 " use advanceed editing?
 "inoremap i o O a A x X
 
+" g<C-]> shows candidates, use it by default
+" https://vi.stackexchange.com/a/9652
+nnoremap g<C-]> <C-]>
+nnoremap <C-]> g<C-]>
+
+inoremap <A-b> <C-o>b
+inoremap <A-f> <C-o>w
+
 " enable per-directory vimrc
 " set exrc
 
-" use colorscheme ron
+" set colorscheme
 try
   colo seoul256
+catch
+  colo ron
 catch
 endtry
 
@@ -274,8 +285,8 @@ set nofoldenable
 "set foldcolumn=1 " set fdc
 
 " highlights current cursor line/column
-"set cursorline
-"set cursorcolumn
+set cursorline
+set cursorcolumn
 
 " pairs that can wrap by '%'
 set matchpairs+=<:>

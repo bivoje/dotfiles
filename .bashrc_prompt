@@ -46,7 +46,7 @@ function __setprompt
 	# User and server
 	# Only if connected SSH, show the host
 	if [[ -n "$SSH_CLIENT" ]] || [[ -n "$SSH_TTY" ]]; then
-		PS1+="| \[${LIGHTGREEN}\]\u@\h\[${DARKGRAY}\]"
+		PS1+="| \[${LIGHTGREEN}\]\u\[${DARKGRAY}\]@\[${LIGHTGREEN}\]\h\[${DARKGRAY}\]"
 	else
 		PS1+="| \[${LIGHTGREEN}\]\u\[${DARKGRAY}\]"
 	fi
