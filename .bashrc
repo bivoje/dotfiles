@@ -207,6 +207,21 @@ stty -ixon
 # (for tasks finished, e.g. `time-consumming-job; printf \\a` then the terminal sends a message to discord webhook)
 bind 'set bell-style visible'
 
+function cd_extended() {
+	# if called without an argumkent (goto home), called with '-' (goto previous) or required utility is missing,
+	# we just use normal 'cd'. normal 'cd' also supports -P, -L, -e, -@ flags but not covered here. to use them,
+	# invoke 'cd' with backslash prefixed, (like '\cd') to bypass aliasing.
+	if ! [ "$#" -eq 0 ] && ! [ "$1" = "-" ] && command -v cd_extended.py >/dev/null; then
+		path="$(cd_extended.py `pwd` $@)"
+		if [ $? -ne 0 ]; then return $?; fi
+		cd $path
+	else
+		cd $@
+	fi
+}
+alias cde='cd_extended.py `pwd`' # dry run
+alias cd=cd_extended
+
 
 # Handy function definitions from Extreme Ultimate bashrc https://sourceforge.net/projects/ultimate-bashrc/
 
