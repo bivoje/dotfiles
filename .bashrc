@@ -85,7 +85,7 @@ if [[ -x "$(command -v starship)" ]]; then
 	eval "$(starship init bash)"
 
 elif [ "$color_prompt" = yes ]; then
-	if [[ -x "$(command -v grep)" ]] && [[ -x "$(command -v sed)" ]] && [[ -x "$(command -v date)" ]]; then
+	if grep --version 2>&1 >/dev/null && sed --version 2>&1 >/dev/null && date --version 2>&1 >/dev/null; then
 		. ~/.bashrc_prompt
 	else
 		PS1='${debian_chroot:+($debian_chroot)}\[\033[01;32m\]\u@\h\[\033[00m\]:\[\033[01;34m\]\w\[\033[00m\]\$ '

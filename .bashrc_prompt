@@ -4,15 +4,20 @@
 # FULL COLOR MULTILINE COMMAND PROMPT
 #######################################################
 
-# WARNING: overwrites DEBUG trap of bash to get command execution time
 # Source it from bashrc file to use this
 # Based on color Extreme Ultimate bashrc https://sourceforge.net/projects/ultimate-bashrc/
 # Modified displays for minialistic & low overhead
 # Command execution time display is borrowed from starship init script for bash
 
+# A way to set '$?', since bash does not allow assigning to '$?' directly
+function __set_return() { return "${1:-0}"; }
+
 function __setprompt
 {
 	local LAST_COMMAND=$? # Must come first!
+
+	__set_return "$LAST_COMMAND"
+	eval "$_PRESERVED_PROMPT_COMMAND"
 
 	# Define colors
 	local LIGHTGRAY="\033[0;37m"
@@ -123,12 +128,9 @@ function __setprompt
 			tmux rename-window "${PWD//*\//}/";
 		fi
 	fi
-}
 
-# PROMPT_COMMAND="history -a; history -c; history -r; __setprompt" # Breaks error trapping
-# PROMPT_COMMAND gets executed before showing PS1
-# HISTFILESIZE not considered (assume infinite HISTFILESIZE)
-PROMPT_COMMAND="__setprompt; $PROMPT_COMMAND" # __setprompt should be able to get correct $?
+	__set_return "$LAST_COMMAND"
+}
 
 # Will be run before every command (even ones in pipes)
 prompt_preexec() {
@@ -141,4 +143,23 @@ prompt_preexec() {
 	: "$PREV_LAST_ARG"
 }
 
-trap 'prompt_preexec "$_"' DEBUG
+# PROMPT_COMMAND="history -a; history -c; history -r; __setprompt" # Breaks error trapping
+# PROMPT_COMMAND gets executed before showing PS1
+# TODO HISTFILESIZE not considered (assume infinite HISTFILESIZE)
+
+dbg_trap="$(trap -p DEBUG | cut -d' ' -f3 | tr -d \')"
+if [[ -z "$dbg_trap" ]]; then
+	trap 'prompt_preexec "$_"' DEBUG
+elif [[ "$dbg_trap" != 'prompt_preexec "$_"' && "$dbg_trap" != 'prmopt_preexec_all "$_"' ]]; then
+	prmopt_preexec_all() {
+		local PREV_LAST_ARG=$1 ; $dbg_trap; prmopt_preexec; : "$PREV_LAST_ARG";
+	}
+	trap 'prmopt_preexec_all "$_"' DEBUG
+fi
+
+if [[ -z "$PROMPT_COMMAND" ]]; then
+	PROMPT_COMMAND="__setprompt"
+elif [[ "$PROMPT_COMMAND" != *"__setprompt"* ]]; then
+	_PRESERVED_PROMPT_COMMAND="$PROMPT_COMMAND"
+	PROMPT_COMMAND="__setprompt"
+fi
