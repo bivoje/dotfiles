@@ -413,7 +413,7 @@ function extract() {
 	done
 }
 
-function merge_prepare_file() {
+function mergeview_prepare_file() {
 	local SUFFIX="$1"
 	local commit="$2"
 	local path="$3"
@@ -433,10 +433,14 @@ function merge_prepare_file() {
 		cp "$path" "$newpath"
 	fi
 
+	if [ $? -ne 0 ]; then
+		return 1
+	fi
+
 	printf "$newpath"
 }
 
-function merge() {
+function mergeview() {
 	# argument parsing
 	# commit/branch name should not contain ':'
 	# you can omit branchname, but to omit filename you should put suffix colon.
@@ -458,9 +462,27 @@ function merge() {
 	elif [ -n "$loc_path" ] && [ -z "$rem_path" ]; then
 		default_path="$loc_path"
 	elif [ -z "$loc_path" ] && [ -n "$rem_path" ]; then
-		default_path="$loc_path"
+		default_path="$rem_path"
 	else
 		printf "can't resolve filenames for merge!\n" >&2
+		cat << HELPMSG
+USAGE: enable 3-way merge -style editing
+SYNTAX: mergeview <localfile> <basefile> <remotefile> <output>
+  output is created by git-style 3-way merge if not exist
+  file specifier syntax:
+    - <PATH>            filepath in current worktree
+    - <COMMIT>:         resolved path in the commit (branch)
+    - <COMMIT>:<PATH>   filepath in the commit (branch)
+    commit/branch name should not contain ':'
+    if <PATH> contains ':' you cannot omit <COMMIT>
+    omitted path is resolved from other arguments,
+    prioritizing <basefile>, (<localfile> ^ <remotefile>)
+EXAMPLE: mergeview \\
+	ours:llvm/lib/Target/XPU/XPUISelLowering.cpp \\
+	base:llvm/lib/Target/RISCV/RISCVISelLowering.cpp \\
+	clang16:llvm/lib/Target/RISCV/RISCVISelLowering.cpp \\
+	merged.cpp
+HELPMSG
 		return 1
 	fi
 	: ${loc_path:=$default_path}
@@ -469,15 +491,21 @@ function merge() {
 	: ${new_path:=$default_path}
 	# https://www.debuntu.org/how-to-bash-parameter-expansion-and-default-values/
 
-	loc=`merge_prepare_file "LOCAL"  "$loc_commit" "$loc_path"`
-	bas=`merge_prepare_file "BASE"   "$bas_commit" "$bas_path"`
-	rem=`merge_prepare_file "REMOTE" "$rem_commit" "$rem_path"`
+	while true; do
+		loc=`mergeview_prepare_file "LOCAL"  "$loc_commit" "$loc_path"`
+		if [ -z "${loc}" ]; then break; fi
+		bas=`mergeview_prepare_file "BASE"   "$bas_commit" "$bas_path"`
+		if [ -z "${bas}" ]; then break; fi
+		rem=`mergeview_prepare_file "REMOTE" "$rem_commit" "$rem_path"`
+		if [ -z "${rem}" ]; then break; fi
 
-	if ! [ -e "$new_path" ]; then
-		git merge-file "$loc" "$bas" "$rem" --diff3 -pq > "$new_path"
-	fi
+		if ! [ -e "$new_path" ]; then
+			git merge-file "$loc" "$bas" "$rem" --diff3 -pq > "$new_path"
+		fi
 
-	vim -f --cmd "set diff" -c "set hidden diffopt-=hiddenoff | echo | leftabove split | leftabove vertical split | 1b | wincmd l | leftabove vertical split | 2b | wincmd l | 3b | wincmd j | 4b | execute 'windo diffthis'" "$loc" "$bas" "$rem" "$new_path"
+		vim -f --cmd "set diff" -c "set hidden diffopt-=hiddenoff | echo | leftabove split | leftabove vertical split | 1b | wincmd l | leftabove vertical split | 2b | wincmd l | 3b | wincmd j | 4b | execute 'windo diffthis'" "$loc" "$bas" "$rem" "$new_path"
+		break
+	done
 
 	rm -rf "$loc" "$bas" "$rem"
 }
