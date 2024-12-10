@@ -5,6 +5,8 @@
 	helper = store
 [alias]
 	ll = log --graph --oneline --all --decorate
+        # focus on branching/merging commits (omits sequential commits)
+	ls = log --graph --all --simplify-by-decoration --pretty=format:'%C(auto)%h %d %s %C(blue)(%an) %ad'
 	st = status
 	amend = commit --amend -C HEAD
 [merge]
@@ -17,3 +19,5 @@
 	color = auto
 [mergetool "vimdiff"]
 	layout = LOCAL,BASE,REMOTE / MERGED + REMOTE,BASE + LOCAL,BASE
+[log]
+	date = format:%Y-%m-%d %H:%M:%S %z
