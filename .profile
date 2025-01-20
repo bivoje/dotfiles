@@ -83,10 +83,19 @@ fi
 # auto tmux
 # https://unix.stackexchange.com/a/113768
 if which tmux 2>&1 > /dev/null && [ -n "$PS1" ] && [ -z "$TMUX" ]; then
-  case "$TERM" in
-    *screen*) ;;
-    *tmux*) ;;
-    #*) exec tmux
-    *) tmux list-sessions &>/dev/null && tmux -2 attach || tmux -2
-  esac
+	case "$TERM" in
+		*screen*) ;;
+		*tmux*) ;;
+		#*) exec tmux
+		*)
+			if tmux list-sessions &>/dev/null; then
+				if [ -n "$TMUX_SESSION" ]; then
+					tmux -2 attach -t $TMUX_SESSION
+				else
+					tmux -2 attach
+				fi
+			else
+				tmux -2
+			fi
+	esac
 fi
