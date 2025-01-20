@@ -1,0 +1,316 @@
+# Handy function definitions from Extreme Ultimate bashrc https://sourceforge.net/projects/ultimate-bashrc/
+
+# Confirm/Ask a question - See 'killps' for example of use
+# General-purpose function to ask Yes/No questions in Bash,
+# either with or without a default answer.
+# It keeps repeating the question until it gets a valid answer.
+# Link: https://gist.github.com/davejamesmiller/1965569
+# Example Usage:
+#   if ask "Do you want to do such-and-such?"; then
+# Default to Yes if the user presses enter without giving an answer:
+#   if ask "Do you want to do such-and-such?" Y; then
+# Default to No if the user presses enter without giving an answer:
+#   if ask "Do you want to do such-and-such?" N; then
+# Or if you prefer the shorter version:
+#   ask "Do you want to do such-and-such?" && said_yes
+#   ask "Do you want to do such-and-such?" || said_no
+function ask() {
+	local prompt default reply
+
+	if [[ ${2:-} = 'Y' ]]; then
+		prompt='Y/n'
+		default='Y'
+	elif [[ ${2:-} = 'N' ]]; then
+		prompt='y/N'
+		default='N'
+	else
+		prompt='y/n'
+		default=''
+	fi
+
+	while true; do
+		# Ask the question (not using "read -p" as it uses stderr not stdout)
+		echo -ne "$1 [$prompt] "
+
+		# Read the answer (use /dev/tty in case stdin is redirected from somewhere else)
+		read -r reply </dev/tty
+
+		# Default?
+		if [[ -z $reply ]]; then
+			reply=$default
+		fi
+
+		# Check if the reply is valid
+		case "$reply" in
+			Y*|y*) return 0 ;;
+			N*|n*) return 1 ;;
+		esac
+	done
+}
+
+# Search process names to kill
+# https://unix.stackexchange.com/questions/443472/alias-for-killing-all-processes-of-a-grep-hit
+function smash() {
+	local T_PROC=$1
+	local T_PIDS=($(pgrep -i "$T_PROC"))
+	if [[ "${#T_PIDS[@]}" -ge 1 ]]; then
+		echo "Found the following processes:"
+		for pid in "${T_PIDS[@]}"; do
+			echo "$pid" "$(\ps -p "$pid" -o comm= | awk -F'/' '{print $NF}')" | column -t
+		done
+		if ask "Kill them?" N; then
+			for pid in "${T_PIDS[@]}"; do
+				echo "Killing ${pid}..."
+				( kill -15 "$pid" ) && continue
+				sleep 2
+				( kill -2 "$pid" ) && continue
+				sleep 2
+				( kill -1 "$pid" ) && continue
+				echo "Cannot terminate" >&2 && return 1
+			done
+		else
+			echo "Exiting..."
+			return 0
+		fi
+	else
+		echo "No processes found for: $1" >&2 && return 1
+	fi
+}
+
+# See what command you are using the most (this parses the history command)
+function mostused() {
+	history \
+	| awk ' { a[$4]++ } END { for ( i in a ) print a[i], i | "sort -rn | head -n10"}' \
+	| awk '$1 > max{ max=$1} { bar=""; i=s=10*$1/max;while(i-->0)bar=bar"#"; printf "%25s %15d %s %s", $2, $1,bar, "\n"; }'
+}
+
+# Make a string safe to be used in regular expressions
+function regexformat() {
+	echo -n "$(printf '%s' "${1}" | sed 's/[.[\(\)\ *^$+?{|]/\\&/g')"
+}
+
+# Commands pushd and popd now output the directory stack after modification
+# and also prevents duplicate directories being added to the directory stack
+pushd() {
+	builtin pushd "${@}" > /dev/null
+	echo "Directory Stack:"
+	dirs -v
+}
+
+popd() {
+	builtin popd "${@}" > /dev/null
+	echo "Directory Stack:"
+	dirs -v
+}
+
+grepr() {
+	grep -iIHrn --color=always "${@}" . | $PAGER -r
+}
+
+# Print a list of colors
+function colors() {
+	local fgc bgc vals seq0
+
+	printf "Color escapes are %s\n" '\e[${value};...;${value}m'
+	printf "Values 30..37 are \e[33mforeground colors\e[m\n"
+	printf "Values 40..47 are \e[43mbackground colors\e[m\n"
+	printf "Value  1 gives a  \e[1mbold-faced look\e[m\n\n"
+
+	# foreground colors
+	for fgc in {30..37}; do
+		# background colors
+		for bgc in {40..47}; do
+			fgc=${fgc#37} # white
+			bgc=${bgc#40} # black
+
+			vals="${fgc:+$fgc;}${bgc}"
+			vals=${vals%%;}
+
+			seq0="${vals:+\e[${vals}m}"
+			printf "  %-9s" "${seq0:-(default)}"
+			printf " ${seq0}TEXT\e[m"
+			printf " \e[${vals:+${vals+$vals;}}1mBOLD\e[m"
+		done
+		echo; echo
+	done
+}
+
+# Print a list of 256 colors
+function colors256() {
+	for j in {0..15} ; do
+		for i in {0..15} ; do
+			printf "\x1b[38;5;%dm%03d " $((16*j+i)) $((16*j+i))
+		done
+		printf "\n"
+	done
+}
+
+# Test for 24bit true color in the terminal
+function colors24bit() {
+	echo 'If the gradients are smooth, you are displaying 24bit true color.'
+	awk 'BEGIN{
+		s='1234567890';
+		s=s s s s s s s s s s s s s s s s s s s s s s s;
+		for (colnum = 0; colnum<256; colnum++) {
+			r = 255-(colnum*255/255);
+			g = (colnum*510/255);
+			b = (colnum*255/255);
+			if (g>255) g = 510-g;
+			printf "\033[48;2;%d;%d;%dm", r,g,b;
+			printf "\033[38;2;%d;%d;%dm", 255-r,255-g,255-b;
+			printf "%s\033[0m", substr(s,colnum+1,1);
+		}
+		printf "\n";
+	}'
+}
+
+# Extracts any archive(s)
+function extract() {
+	for archive; do
+		if [ -f "$archive" ] ; then
+			case "$archive" in
+				*.tar.bz2)   tar xvjf "$archive"   ;;
+				*.tar.gz)    tar xvzf "$archive"   ;;
+				*.bz2)       bunzip2 "$archive"    ;;
+				*.rar)       rar x "$archive"      ;;
+				*.gz)        gunzip "$archive"     ;;
+				*.tar)       tar xvf "$archive"    ;;
+				*.tbz2)      tar xvjf "$archive"   ;;
+				*.tgz)       tar xvzf "$archive"   ;;
+				*.zip)       unzip "$archive"      ;;
+				*.Z)         uncompress "$archive" ;;
+				*.7z)        7z x "$archive"       ;;
+				*)           echo "don't know how to extract '$archive'..." ;;
+			esac
+		else
+			echo "'$archive' is not a valid file!"
+		fi
+	done
+}
+
+function mergeview_prepare_file() {
+	local SUFFIX="$1"
+	local commit="$2"
+	local path="$3"
+
+	if [ "$#" -eq 0 ]; then
+		cat << HELPMSG
+USAGE: copies file from specific revision
+SYNTAX: mergeview_prepare_file <suffix> <commit> <path> [<newpath>]
+  if <suffix> is nonempty, <newpath> argument is ignored and set to
+  "<filepath>_<suffix><.ext>".
+  if <suffix> is empty, <path> || <newpath> is used
+EXAMPLE:
+  $ mergeview_prepare_file "LOCAL" clang16 test/test.s
+  >> copies clang16:test/test.s into test/test_LOCAL.s
+  $ mergeview_prepare_file "" ours llvm/CPackConfig.cmake
+  >> copies ours:llvm/CPackConfig.cmake into llvm/CPackConfig.cmake
+HELPMSG
+	return 0
+	fi
+
+	local newpath=''
+	if [ -n "$SUFFIX" ]; then
+		file="${path%.*}"
+		ext="${path##*.}"
+		[ "$path" = "$ext" ] && ext='' || ext=".${ext}"
+		newpath="${file}_${SUFFIX}${ext}"
+	else
+		: ${newpath:=$path}
+		: ${newpath:=$4}
+	fi
+
+	if [ -n "$commit" ]; then
+		# https://stackoverflow.com/a/610315
+		# https://stackoverflow.com/a/39923104
+		# https://stackoverflow.com/a/957078
+		mkdir -p "$(dirname "$newpath")" # FIXME how to delete created dir? idk...
+		git show "${commit}:$(git rev-parse --show-prefix)${path}" > "$newpath"
+	elif [ -e "$path" ]; then
+		cp "$path" "$newpath"
+	fi
+
+	if [ $? -ne 0 ]; then
+		return 1
+	fi
+
+	printf "$newpath\n"
+}
+export -f mergeview_prepare_file
+
+
+function mergeview() {
+	while true; do
+		# argument parsing
+		# commit/branch name should not contain ':'
+		# you can omit branchname, but to omit filename you should put suffix colon.
+		local loc_commit="${1%%:*}" # remove longest suffix of pattern ':*'
+		[ "$loc_commit" = "$1" ] && loc_commit=''
+		local loc_path="${1#*:}" # remove shortest prefix of pattern '*:'
+		local bas_commit="${2%%:*}"
+		[ "$bas_commit" = "$2" ] && bas_commit=''
+		local bas_path="${2#*:}"
+		local rem_commit="${3%%:*}"
+		[ "$rem_commit" = "$3" ] && rem_commit=''
+		local rem_path="${3#*:}"
+		local new_path="$4"
+
+		# fill in default filepath
+		local default_path=''
+		if [ -n "$bas_path" ]; then
+			default_path="$bas_path"
+		elif [ -n "$loc_path" ] && [ -z "$rem_path" ]; then
+			default_path="$loc_path"
+		elif [ -z "$loc_path" ] && [ -n "$rem_path" ]; then
+			default_path="$rem_path"
+		elif [ -n "$new_path" ]; then
+			default_path="$new_path"
+		else
+			printf "can't resolve filenames for merge!\n" >&2
+			cat << HELPMSG
+USAGE: enable 3-way merge -style editing
+SYNTAX: mergeview <localfile> <basefile> <remotefile> <output>
+  <output> is created by git-style 3-way merge if not exist
+  file specifier syntax:
+    - <PATH>            filepath in current worktree
+    - <COMMIT>:         resolved path in the commit (branch)
+    - <COMMIT>:<PATH>   filepath in the commit (branch)
+    commit/branch name should not contain ':'
+    if <PATH> contains ':' you cannot omit <COMMIT>
+    omitted path is resolved from other arguments,
+    prioritizing <basefile>, (<localfile> ^ <remotefile>), <output>
+EXAMPLE: mergeview \\
+	ours:llvm/lib/Target/XPU/XPUISelLowering.cpp \\
+	base:llvm/lib/Target/RISCV/RISCVISelLowering.cpp \\
+	clang16:llvm/lib/Target/RISCV/RISCVISelLowering.cpp \\
+	merged.cpp
+HELPMSG
+			break
+		fi
+		: ${loc_path:=$default_path}
+		: ${bas_path:=$default_path}
+		: ${rem_path:=$default_path}
+		: ${new_path:=$default_path}
+		# https://www.debuntu.org/how-to-bash-parameter-expansion-and-default-values/
+
+		loc=`mergeview_prepare_file "LOCAL"  "$loc_commit" "$loc_path"`
+		if [ -z "${loc}" ]; then break; fi
+		bas=`mergeview_prepare_file "BASE"   "$bas_commit" "$bas_path"`
+		if [ -z "${bas}" ]; then break; fi
+		rem=`mergeview_prepare_file "REMOTE" "$rem_commit" "$rem_path"`
+		if [ -z "${rem}" ]; then break; fi
+
+		if ! [ -e "$new_path" ]; then
+			git merge-file "$loc" "$bas" "$rem" --diff3 -pq > "$new_path"
+		fi
+
+		vim -f --cmd "set diff" -c "set hidden diffopt-=hiddenoff | echo | leftabove split | leftabove vertical split | 1b | wincmd l | leftabove vertical split | 2b | wincmd l | 3b | wincmd j | 4b | execute 'windo diffthis'" "$loc" "$bas" "$rem" "$new_path"
+
+		rm -rf "$loc" "$bas" "$rem"
+		return 0
+	done
+
+	rm -rf "$loc" "$bas" "$rem"
+	return 1
+}
+export -f mergeview
