@@ -15,20 +15,20 @@ umask 022 # newly created file gets permission ~022
 
 ## FIXME this should be taken care at /etc/profile.d/01-locale-fix.sh
 if locale -a | grep -q '^C.utf8$'; then
-    loc=C.UTF-8
+	loc=C.UTF-8
 elif locale -a | grep -q '^en_US.utf8$'; then
-    loc=en_US.UTF-8
+	loc=en_US.UTF-8
 else
-    loc=
-    case "${LANGUAGE:-$LANG}" in
-        *UTF-8*) ;;
-        *) echo "WARNING: current locale('${LANGUAGE:-$LANG}') is not UTF-8" ;;
-    esac
+	loc=
+	case "${LANGUAGE:-$LANG}" in
+		*UTF-8*) ;;
+		*) echo "WARNING: current locale('${LANGUAGE:-$LANG}') is not UTF-8" ;;
+	esac
 fi
 if [ -n "$loc" ]; then
-    export LANG=$loc
-    export LANGUAGE=$loc
-    export LC_ALL=$loc
+	export LANG=$loc
+	export LANGUAGE=$loc
+	export LC_ALL=$loc
 fi
 unset loc
 
@@ -39,7 +39,7 @@ export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:/$HOME/.local/lib
 
 # for rustup / cargo
 if [ -e $HOME/.cargo/env ]; then
-  . "$HOME/.cargo/env"
+	. "$HOME/.cargo/env"
 fi
 
 # used in fc, crontab
