@@ -2,7 +2,7 @@
 	email = bivoje49@gmail.com
 	name = bivoje
 [credential]
-	helper = store
+	helper = "!f() { /root/.vscode-server/bin/17baf841131aa23349f217ca7c570c76ee87b957/node /tmp/vscode-remote-containers-9a5c6c84-69dd-4a74-bc0b-1bd636bd1da4.js git-credential-helper $*; }; f"
 [alias]
 	ll = log --graph --oneline --all --decorate
         # focus on branching/merging commits (omits sequential commits)

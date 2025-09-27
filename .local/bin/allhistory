@@ -133,6 +133,8 @@ def run(argv):
 import sys
 try:
     run(sys.argv)
+except IOError as e:
+    pass # silence "Errno 32 Broken Pipe" error when `less` exits early
 except Exception as e:
     print(f"{Path(sys.argv[0]).name}: {e}", file=sys.stderr)
     exit(1)
